@@ -30,34 +30,26 @@ class Config:
         """Create Config instance from file."""
         cp = configparser.ConfigParser()
         cp.read(file)
-        # Add sections to config if missing
-        try:
-            cp.add_section("GENERAL")
-            cp.add_section("TINIFY")
-        except configparser.DuplicateSectionError:
-            pass
+        config_sections = ["GENERAL", "TINIFY"]
 
-        try:
-            use_tinify = cp.getboolean("GENERAL", "use_tinify")
-        except configparser.NoOptionError:
-            use_tinify = False
-            cp.set("GENERAL", "use_tinify", use_tinify)
-
-        if use_tinify:
+        for sec in config_sections:
             try:
-                api_key = cp.get("TINIFY", "api_key")
-            except (configparser.NoSectionError, configparser.NoOptionError):
-                if not cp.has_section("TINIFY"):
-                    cp.add_section("TINIFY")
-                api_key = input("Enter Tinify API key: ")
-                if api_key:
-                    LOG.info("User input for Tinify API key: '%s'", api_key)
-                    print("Tinify API key will be saved to conf.ini file.")
-                    cp.set("TINIFY", "api_key", api_key)
-            if not cp.has_option("GENERAL", "use_tinify"):
-                cp.set("GENERAL", "use_tinify", use_tinify)
-        else:
-            api_key = None
+                cp.add_section(sec)
+            except configparser.DuplicateSectionError:
+                pass
+
+        use_tinify = cp.getboolean("GENERAL", "use_tinify", fallback=False)
+        api_key = cp.get("TINIFY", "api_key", fallback="")
+        if not cp.has_option("GENERAL", "use_tinify"):
+            cp.set("GENERAL", "use_tinify", str(use_tinify))
+        if not cp.has_option("TINIFY", "api_key"):
+            cp.set("TINIFY", "api_key", api_key)
+        if use_tinify and not api_key:
+            api_key = input("Enter Tinify API key: ")
+            if api_key:
+                LOG.info("User input for Tinify API key: '%s'", api_key)
+                print("Tinify API key will be saved to conf.ini file.")
+                cp.set("TINIFY", "api_key", api_key)
         with open(file, "w") as f:
             cp.write(f)
         return Config(api_key, use_tinify)
@@ -242,8 +234,8 @@ def main():
             )
             sys.exit(1)
     else:
-        im.thumbnail((args.width, args.height), Image.LANCZOS)
-        #  im.resize((2000, 2000), Image.LANCZOS)
+        #  im.thumbnail((args.width, args.height), Image.LANCZOS)
+        im.resize((args.width, args.height), Image.LANCZOS)
         im.save(outbuf, "JPEG")
         outbuf = outbuf.read()
     new_size = sys.getsizeof(outbuf)
