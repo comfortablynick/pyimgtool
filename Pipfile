@@ -9,9 +9,11 @@ flake8 = "*"
 mypy = "*"
 jedi = "*"
 pylint = "*"
+rope = "*"
 
 [packages]
 pillow = "*"
+tinify = "*"
 
 [requires]
 python_version = "3.7"
