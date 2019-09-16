@@ -63,6 +63,21 @@ class Position(Enum):
     BOTTOM_RIGHT = "bottom-right"
     BOTTOM_LEFT = "bottom-left"
 
+    def __str__(self):
+        return self.value.lower()
+
+    def __repr__(self):
+        return str(self)
+
+    @staticmethod
+    def argparse(s):
+        """Helper to parse string values from CLI into Position."""
+        vals = {x.value.lower(): x for x in list(Position)}
+        try:
+            return vals[s.lower()]
+        except KeyError:
+            return s
+
 
 def tinify_image(filename):
     tinify.key = "1VwxdYS5L9H7D8mmK3jLsRH1995JV4y4"
@@ -152,11 +167,21 @@ def parse_args(args: list):
         default=0,
     )
     image_group.add_argument(
+        "-wo",
+        help="watermark opacity",
+        dest="watermark_opacity",
+        type=float,
+        metavar="OPACITY",
+        default=0.3,
+    )
+    image_group.add_argument(
         "-wp",
         help="watermark position",
         dest="watermark_position",
         metavar="POS",
         default=Position.BOTTOM_RIGHT,
+        type=Position.argparse,
+        choices=list(Position),
     )
 
     # Jpg group
@@ -210,12 +235,11 @@ def main():
     im = Image.open(inbuf)
     in_width, in_height = im.size
     if args.width > 0 and args.height == 0:
-        args.height = (args.width * in_height) / in_width
+        args.height = int(round((args.width * in_height) / in_width))
     LOG.info("Input dims: %s", (in_width, in_height))
     LOG.info("Input size: %s", humanize_bytes(orig_size))
 
     if cfg.use_tinify:
-        #  tinify.key = "1VwxdYS5L9H7D8mmK3jLsRH1995JV4y4"
         tinify.tinify.key = cfg.tinify_api_key
         im.save(outbuf, "JPEG")
         try:
@@ -234,10 +258,22 @@ def main():
             )
             sys.exit(1)
     else:
-        #  im.thumbnail((args.width, args.height), Image.LANCZOS)
-        im.resize((args.width, args.height), Image.LANCZOS)
+        watermark_image = Image.open(
+            os.path.expanduser("~/git/pyimg/test/logo.png")
+        ).convert("RGBA")
+
+        mask = watermark_image.split()[3].point(lambda i: i * args.watermark_opacity)
+        pos = (
+            (in_width - watermark_image.width - 25),
+            (in_height - watermark_image.height - 25),
+        )
+        im.paste(watermark_image, pos, mask)
+        im.thumbnail((args.width, args.height), Image.LANCZOS)
+        #  im.resize((args.width, args.height), Image.LANCZOS)
+        out_width, out_height = im.size
+        LOG.info("Output dims: %s", (out_width, out_height))
         im.save(outbuf, "JPEG")
-        outbuf = outbuf.read()
+        outbuf = outbuf.getvalue()
     new_size = sys.getsizeof(outbuf)
     LOG.info("Output size: %s", humanize_bytes(new_size))
 
