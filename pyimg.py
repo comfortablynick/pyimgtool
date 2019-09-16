@@ -124,6 +124,12 @@ def parse_args(args: list):
         default="_edited",
     )
     parser.add_argument(
+        "-t",
+        help="use tinify API for resize/compression",
+        action="store_true",
+        dest="use_tinify",
+    )
+    parser.add_argument(
         "-n",
         help="display results only; don't save file",
         dest="no_op",
@@ -151,14 +157,22 @@ def parse_args(args: list):
         default=0,
         type=int,
     )
-    image_group.add_argument(
+    watermark_group = parser.add_argument_group("Watermark options")
+    watermark_group.add_argument(
         "-wt",
         help="text to display in watermark",
         type=str,
         dest="watermark_text",
         metavar="TEXT",
     )
-    image_group.add_argument(
+    watermark_group.add_argument(
+        "-wf",
+        help="image file to use as watermark",
+        type=Path,
+        dest="watermark_file",
+        metavar="PATH",
+    )
+    watermark_group.add_argument(
         "-wr",
         help="angle of watermark rotation",
         dest="watermark_rotation",
@@ -166,7 +180,7 @@ def parse_args(args: list):
         type=int,
         default=0,
     )
-    image_group.add_argument(
+    watermark_group.add_argument(
         "-wo",
         help="watermark opacity",
         dest="watermark_opacity",
@@ -174,7 +188,7 @@ def parse_args(args: list):
         metavar="OPACITY",
         default=0.3,
     )
-    image_group.add_argument(
+    watermark_group.add_argument(
         "-wp",
         help="watermark position",
         dest="watermark_position",
@@ -201,11 +215,12 @@ def parse_args(args: list):
         parser._optionals.title = "Options"
     parsed = parser.parse_intermixed_args(args)
 
-    # do rudimentary checks
+    # do basic validation
     if not 0 <= parsed.jpg_quality <= 100:
-        parser.exit(
-            1, f"Quality (-q) must be within 0-100; found: {parsed.jpg_quality}\n"
-        )
+        parser.error(f"Quality (-q) must be within 0-100; found: {parsed.jpg_quality}")
+
+    if parsed.watermark_text is not None and parsed.watermark_file is not None:
+        parser.error("Can use either -wt or -wf, not both")
     return parsed
 
 
@@ -239,7 +254,19 @@ def main():
     LOG.info("Input dims: %s", (in_width, in_height))
     LOG.info("Input size: %s", humanize_bytes(orig_size))
 
-    if cfg.use_tinify:
+    if args.watermark_file:
+        watermark_image = Image.open(os.path.expanduser(args.watermark_file)).convert(
+            "RGBA"
+        )
+
+        mask = watermark_image.split()[3].point(lambda i: i * args.watermark_opacity)
+        pos = (
+            (in_width - watermark_image.width - 25),
+            (in_height - watermark_image.height - 25),
+        )
+        im.paste(watermark_image, pos, mask)
+
+    if cfg.use_tinify or args.use_tinify:
         tinify.tinify.key = cfg.tinify_api_key
         im.save(outbuf, "JPEG")
         try:
@@ -258,18 +285,7 @@ def main():
             )
             sys.exit(1)
     else:
-        watermark_image = Image.open(
-            os.path.expanduser("~/git/pyimg/test/logo.png")
-        ).convert("RGBA")
-
-        mask = watermark_image.split()[3].point(lambda i: i * args.watermark_opacity)
-        pos = (
-            (in_width - watermark_image.width - 25),
-            (in_height - watermark_image.height - 25),
-        )
-        im.paste(watermark_image, pos, mask)
-        im.thumbnail((args.width, args.height), Image.LANCZOS)
-        #  im.resize((args.width, args.height), Image.LANCZOS)
+        im.thumbnail((args.width, args.height), Image.ANTIALIAS)
         out_width, out_height = im.size
         LOG.info("Output dims: %s", (out_width, out_height))
         im.save(outbuf, "JPEG")
