@@ -45,7 +45,12 @@ class Config:
         if not cp.has_option("TINIFY", "api_key"):
             cp.set("TINIFY", "api_key", api_key)
         if use_tinify and not api_key:
-            api_key = input("Enter Tinify API key: ")
+            try:
+                api_key = input("Enter Tinify API key: ")
+                tinify.validate()
+            except tinify.Error:
+                print("Invalid Tinify API key: '%s'", sys.stderr)
+                sys.exit(1)
             if api_key:
                 LOG.info("User input for Tinify API key: '%s'", api_key)
                 print("Tinify API key will be saved to conf.ini file.")
@@ -139,24 +144,27 @@ def parse_args(args: list):
     # Image group
     image_group = parser.add_argument_group("General image options")
     image_group.add_argument(
-        "-ke", help="keep exif data", dest="keep_exif", action="store_true"
+        "-p",
+        help="scale output by percent of orig size",
+        dest="pct_scale",
+        metavar="SCALE",
+        type=float,
     )
     image_group.add_argument(
-        "-mw",
-        help="maximum width of output",
-        dest="width",
-        metavar="WIDTH",
-        type=int,
-        default=0,
+        "-mw", help="maximum width of output", dest="width", metavar="WIDTH", type=int
     )
     image_group.add_argument(
         "-mh",
         help="maximum height of output",
         dest="height",
         metavar="HEIGHT",
-        default=0,
         type=int,
     )
+    image_group.add_argument(
+        "-ke", help="keep exif data if possible", dest="keep_exif", action="store_true"
+    )
+
+    # Watermark group
     watermark_group = parser.add_argument_group("Watermark options")
     watermark_group.add_argument(
         "-wt",
@@ -249,10 +257,20 @@ def main():
     orig_size = inbuf.tell()
     im = Image.open(inbuf)
     in_width, in_height = im.size
-    if args.width > 0 and args.height == 0:
-        args.height = int(round((args.width * in_height) / in_width))
     LOG.info("Input dims: %s", (in_width, in_height))
     LOG.info("Input size: %s", humanize_bytes(orig_size))
+
+    # get new dims from args
+    if args.pct_scale:
+        LOG.info("Scaling image by %.1f%%", args.pct_scale)
+        args.width = int(round(in_width * args.pct_scale))
+        args.height = int(round(in_height * args.pct_scale))
+    if args.width and not args.height:
+        LOG.info("Calculating height based on width")
+        args.height = int(round((args.width * in_height) / in_width))
+    elif args.height and not args.width:
+        LOG.info("Calculating width based on height")
+        args.width = int(round((args.height * in_width) / in_height))
 
     if args.watermark_file:
         watermark_image = Image.open(os.path.expanduser(args.watermark_file)).convert(

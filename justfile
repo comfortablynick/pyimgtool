@@ -1,6 +1,7 @@
 bin_name := 'pyimg.py'
 
 alias r := run
+alias h := help
 alias build := testrun # in case vim calls it
 alias install := testrun # in case vim calls it
 
@@ -11,3 +12,7 @@ run +args='':
 # test args
 testrun:
     ./{{bin_name}} test/sunset.jpg test/sunset_edited.jpg -vv -mw 2000
+
+# show prog help
+help:
+    ./{{bin_name}} -h
