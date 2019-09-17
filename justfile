@@ -1,4 +1,7 @@
-bin_name := 'pyimg.py'
+bin_name := './bin/pyimg'
+test_file_in := '../test/sunset.jpg'
+test_file_out := '../test/sunset_edited.jpg'
+test_watermark_file := '../test/logo.png'
 
 alias r := runargs
 alias run := runtest
@@ -12,16 +15,16 @@ runargs +args='':
 
 # test
 runtest:
-    ./{{bin_name}} test/sunset.jpg test/sunset_edited.jpg -vv -mw 2000
+    {{bin_name}} {{test_file_in}} {{test_file_out}} -vv -mw 2000
 
 # test watermark image
 runwi:
-    ./{{bin_name}} test/sunset.jpg test/sunset_edited.jpg -vv -mw 2000 -mh 2000 -wi test/logo.png
+    {{bin_name}} {{test_file_in}} {{test_file_out}} -mw 2000 -mh 2000 -wi {{test_watermark_file}}
 
 # test watermark image (tinify)
 runwit:
-    ./{{bin_name}} test/sunset.jpg test/sunset_edited.jpg -vv -mw 2000 -mh 2000 -wi test/logo.png -t
+    {{bin_name}} {{test_file_in}} {{test_file_out}} -vv -mw 2000 -mh 2000 -wi {{test_watermark_file}} -t
 
 # show prog help
 help:
-    ./{{bin_name}} -h
+    {{bin_name}} -h

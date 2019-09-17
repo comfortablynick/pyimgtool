@@ -1,0 +1,5 @@
+#!/usr/bin/env sh
+scriptdir="$(dirname $0)"
+cd "$scriptdir" || exit 1
+
+python ../pyimg/main.py "$@"

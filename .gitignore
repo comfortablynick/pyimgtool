@@ -3,3 +3,4 @@ conf.ini
 .ropeproject/
 *_edited.jpg
 .vscode/
+__pycache__/
