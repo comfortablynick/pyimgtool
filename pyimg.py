@@ -229,6 +229,9 @@ def parse_args(args: list):
 
     if parsed.watermark_text is not None and parsed.watermark_file is not None:
         parser.error("Can use either -wt or -wf, not both")
+
+    if parsed.pct_scale and (parsed.width or parsed.height):
+        parser.error("Can use either -p or -mw/-mh, not both")
     return parsed
 
 
@@ -263,8 +266,8 @@ def main():
     # get new dims from args
     if args.pct_scale:
         LOG.info("Scaling image by %.1f%%", args.pct_scale)
-        args.width = int(round(in_width * args.pct_scale))
-        args.height = int(round(in_height * args.pct_scale))
+        args.width = int(round(in_width * (args.pct_scale / 100.0)))
+        args.height = int(round(in_height * (args.pct_scale / 100.0)))
     if args.width and not args.height:
         LOG.info("Calculating height based on width")
         args.height = int(round((args.width * in_height) / in_width))
@@ -290,7 +293,7 @@ def main():
         try:
             outbuf = (
                 tinify.tinify.from_buffer(outbuf.getvalue())
-                .resize(method="scale", width=args.width)
+                .resize(method="fit", width=args.width, height=args.height)
                 .to_buffer()
             )
             LOG.info("Tinify monthly count: %d", tinify.tinify.compression_count)
@@ -306,7 +309,7 @@ def main():
         im.thumbnail((args.width, args.height), Image.ANTIALIAS)
         out_width, out_height = im.size
         LOG.info("Output dims: %s", (out_width, out_height))
-        im.save(outbuf, "JPEG")
+        im.save(outbuf, "JPEG", quality=args.jpg_quality)
         outbuf = outbuf.getvalue()
     new_size = sys.getsizeof(outbuf)
     LOG.info("Output size: %s", humanize_bytes(new_size))
