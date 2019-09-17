@@ -2,3 +2,4 @@ conf.ini
 .vim/
 .ropeproject/
 *_edited.jpg
+.vscode/

@@ -7,6 +7,7 @@ import logging
 import os
 import sys
 from dataclasses import dataclass
+from pprint import pformat
 from enum import Enum
 from io import BytesIO
 from pathlib import Path
@@ -18,18 +19,60 @@ logging.basicConfig(level=logging.DEBUG)
 LOG = logging.getLogger(__name__)
 
 
-@dataclass
-class Config:
-    """Store options from config file."""
+class Position(Enum):
+    """Predefined locations of text watermark."""
 
-    tinify_api_key: str
-    use_tinify: bool
+    TOP_LEFT = "top-left"
+    TOP_RIGHT = "top-right"
+    BOTTOM_RIGHT = "bottom-right"
+
+    BOTTOM_LEFT = "bottom-left"
+
+    def __str__(self):
+        """Return enum value in lowercase."""
+        return self.value.lower()
+
+    def __repr__(self):
+        """Return string representation of enum."""
+        return str(self)
 
     @staticmethod
-    def read_from_file(file: Path):
-        """Create Config instance from file."""
+    def argparse(s):
+        """Parse string values from CLI into Position."""
+        vals = {x.value.lower(): x for x in list(Position)}
+        try:
+            return vals[s.lower()]
+        except KeyError:
+            return s
+
+
+@dataclass
+class Config:
+    """Store options from config file and command line."""
+
+    input_file: Path = None
+    output_file: Path = None
+    verbosity: int = 0
+    suffix: str = None
+    tinify_api_key: str = None
+    use_tinify: bool = False
+    no_op: bool = False
+    pct_scale: float = None
+    width: int = None
+    height: int = None
+    keep_exif: bool = False
+    watermark_text: str = None
+    watermark_image: Path = None
+    watermark_rotation: int = None
+    watermark_opacity: float = None
+    watermark_position: Position = None
+    jpg_quality: int = None
+
+    @staticmethod
+    def from_args(args: argparse.Namespace):
+        """Create Config instance from file and command line args."""
         cp = configparser.ConfigParser()
-        cp.read(file)
+        cp.read(args.config_file)
         config_sections = ["GENERAL", "TINIFY"]
 
         for sec in config_sections:
@@ -44,9 +87,10 @@ class Config:
             cp.set("GENERAL", "use_tinify", str(use_tinify))
         if not cp.has_option("TINIFY", "api_key"):
             cp.set("TINIFY", "api_key", api_key)
-        if use_tinify and not api_key:
+        if (use_tinify or args.use_tinify) and not api_key:
             try:
                 api_key = input("Enter Tinify API key: ")
+                tinify.key = api_key
                 tinify.validate()
             except tinify.Error:
                 print("Invalid Tinify API key: '%s'", sys.stderr)
@@ -55,39 +99,30 @@ class Config:
                 LOG.info("User input for Tinify API key: '%s'", api_key)
                 print("Tinify API key will be saved to conf.ini file.")
                 cp.set("TINIFY", "api_key", api_key)
-        with open(file, "w") as f:
+        with open(args.config_file, "w") as f:
             cp.write(f)
-        return Config(api_key, use_tinify)
+        cfg = Config(tinify_api_key=api_key, use_tinify=use_tinify)
+        cfg.merge_cli_args(args)
+        return cfg
 
-
-class Position(Enum):
-    """Predefined locations of text watermark."""
-
-    TOP_LEFT = "top-left"
-    TOP_RIGHT = "top-right"
-    BOTTOM_RIGHT = "bottom-right"
-    BOTTOM_LEFT = "bottom-left"
-
-    def __str__(self):
-        return self.value.lower()
-
-    def __repr__(self):
-        return str(self)
-
-    @staticmethod
-    def argparse(s):
-        """Helper to parse string values from CLI into Position."""
-        vals = {x.value.lower(): x for x in list(Position)}
-        try:
-            return vals[s.lower()]
-        except KeyError:
-            return s
-
-
-def tinify_image(filename):
-    tinify.key = "1VwxdYS5L9H7D8mmK3jLsRH1995JV4y4"
-    source = tinify.from_file(filename)
-    source.to_file(filename)
+    def merge_cli_args(self, args: argparse.Namespace):
+        """Update existing config object from command line args."""
+        self.input_file = args.input
+        self.output_file = args.output
+        self.verbosity = args.verbosity
+        self.suffix = args.suffix
+        self.use_tinify = args.use_tinify
+        self.no_op = args.no_op
+        self.pct_scale = args.pct_scale
+        self.width = args.width
+        self.height = args.height
+        self.keep_exif = args.keep_exif
+        self.watermark_text = args.watermark_text
+        self.watermark_image = args.watermark_image
+        self.watermark_rotation = args.watermark_rotation
+        self.watermark_opacity = args.watermark_opacity
+        self.watermark_position = args.watermark_position
+        self.jpg_quality = args.jpg_quality
 
 
 def parse_args(args: list):
@@ -126,6 +161,7 @@ def parse_args(args: list):
         nargs=1,
         help="text suffix appended to INPUT path if no OUTPUT file given",
         metavar="TEXT",
+        dest="suffix",
         default="_edited",
     )
     parser.add_argument(
@@ -174,10 +210,10 @@ def parse_args(args: list):
         metavar="TEXT",
     )
     watermark_group.add_argument(
-        "-wf",
+        "-wi",
         help="image file to use as watermark",
         type=Path,
-        dest="watermark_file",
+        dest="watermark_image",
         metavar="PATH",
     )
     watermark_group.add_argument(
@@ -227,7 +263,7 @@ def parse_args(args: list):
     if not 0 <= parsed.jpg_quality <= 100:
         parser.error(f"Quality (-q) must be within 0-100; found: {parsed.jpg_quality}")
 
-    if parsed.watermark_text is not None and parsed.watermark_file is not None:
+    if parsed.watermark_text is not None and parsed.watermark_image is not None:
         parser.error("Can use either -wt or -wf, not both")
 
     if parsed.pct_scale and (parsed.width or parsed.height):
@@ -251,11 +287,11 @@ def humanize_bytes(num, suffix="B", si_prefix=False, round_digits=2) -> str:
 
 def main():
     """Start point."""
-    args = parse_args(sys.argv[1:])
-    cfg = Config.read_from_file(args.config_file)
+    cfg = Config.from_args(parse_args(sys.argv[1:]))
+    LOG.debug("Runtime config:\n%s", pformat(cfg.__dict__, indent=2))
     inbuf = BytesIO()
     outbuf = BytesIO()
-    with open(args.input, "rb") as f:
+    with open(cfg.input_file, "rb") as f:
         inbuf.write(f.read())
     orig_size = inbuf.tell()
     im = Image.open(inbuf)
@@ -264,36 +300,36 @@ def main():
     LOG.info("Input size: %s", humanize_bytes(orig_size))
 
     # get new dims from args
-    if args.pct_scale:
-        LOG.info("Scaling image by %.1f%%", args.pct_scale)
-        args.width = int(round(in_width * (args.pct_scale / 100.0)))
-        args.height = int(round(in_height * (args.pct_scale / 100.0)))
-    if args.width and not args.height:
+    if cfg.pct_scale:
+        LOG.info("Scaling image by %.1f%%", cfg.pct_scale)
+        cfg.width = int(round(in_width * (cfg.pct_scale / 100.0)))
+        cfg.height = int(round(in_height * (cfg.pct_scale / 100.0)))
+    if cfg.width and not cfg.height:
         LOG.info("Calculating height based on width")
-        args.height = int(round((args.width * in_height) / in_width))
-    elif args.height and not args.width:
+        cfg.height = int(round((cfg.width * in_height) / in_width))
+    elif cfg.height and not cfg.width:
         LOG.info("Calculating width based on height")
-        args.width = int(round((args.height * in_width) / in_height))
+        cfg.width = int(round((cfg.height * in_width) / in_height))
 
-    if args.watermark_file:
-        watermark_image = Image.open(os.path.expanduser(args.watermark_file)).convert(
+    if cfg.watermark_image:
+        watermark_image = Image.open(os.path.expanduser(cfg.watermark_image)).convert(
             "RGBA"
         )
 
-        mask = watermark_image.split()[3].point(lambda i: i * args.watermark_opacity)
+        mask = watermark_image.split()[3].point(lambda i: i * cfg.watermark_opacity)
         pos = (
             (in_width - watermark_image.width - 25),
             (in_height - watermark_image.height - 25),
         )
         im.paste(watermark_image, pos, mask)
 
-    if cfg.use_tinify or args.use_tinify:
+    if cfg.use_tinify or cfg.use_tinify:
         tinify.tinify.key = cfg.tinify_api_key
         im.save(outbuf, "JPEG")
         try:
             outbuf = (
                 tinify.tinify.from_buffer(outbuf.getvalue())
-                .resize(method="fit", width=args.width, height=args.height)
+                .resize(method="fit", width=cfg.width, height=cfg.height)
                 .to_buffer()
             )
             LOG.info("Tinify monthly count: %d", tinify.tinify.compression_count)
@@ -306,17 +342,17 @@ def main():
             )
             sys.exit(1)
     else:
-        im.thumbnail((args.width, args.height), Image.ANTIALIAS)
+        im.thumbnail((cfg.width, cfg.height), Image.ANTIALIAS)
         out_width, out_height = im.size
         LOG.info("Output dims: %s", (out_width, out_height))
-        im.save(outbuf, "JPEG", quality=args.jpg_quality)
+        im.save(outbuf, "JPEG", quality=cfg.jpg_quality)
         outbuf = outbuf.getvalue()
     new_size = sys.getsizeof(outbuf)
     LOG.info("Output size: %s", humanize_bytes(new_size))
 
-    if not args.no_op:
-        LOG.info("Saving buffer to %s", args.output)
-        with open(args.output, "wb") as f:
+    if not cfg.no_op:
+        LOG.info("Saving buffer to %s", cfg.output_file)
+        with open(cfg.output_file, "wb") as f:
             f.write(outbuf)
 
 
