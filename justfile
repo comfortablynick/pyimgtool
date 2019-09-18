@@ -18,12 +18,12 @@ runtest:
     {{bin_name}} {{test_file_in}} {{test_file_out}} -vv -mw 2000
 
 # test watermark image
-runwi:
-    {{bin_name}} {{test_file_in}} {{test_file_out}} -mw 2000 -mh 2000 -wi {{test_watermark_file}}
+runwi +args='':
+    {{bin_name}} {{test_file_in}} {{test_file_out}} -v -mw 2000 -mh 2000 -wi {{test_watermark_file}} {{args}}
 
 # test watermark image (tinify)
-runwit:
-    {{bin_name}} {{test_file_in}} {{test_file_out}} -vv -mw 2000 -mh 2000 -wi {{test_watermark_file}} -t
+runwit +args='':
+    {{bin_name}} {{test_file_in}} {{test_file_out}} -v -mw 2000 -mh 2000 -wi {{test_watermark_file}} -t {{args}}
 
 # show prog help
 help:

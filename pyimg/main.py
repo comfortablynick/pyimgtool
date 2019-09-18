@@ -1,4 +1,3 @@
-#!/usr/bin/env python
 """Resize and watermark images."""
 
 import logging
@@ -13,7 +12,7 @@ from PIL import Image
 from args import parse_args
 from data_structures import Config
 
-logging.basicConfig(level=logging.WARNING)
+logging.basicConfig(level=logging.DEBUG)
 LOG = logging.getLogger(__name__)
 
 
@@ -39,7 +38,10 @@ def main():
         log_level = (0, 20, 10)[cfg.verbosity]
     except IndexError:
         log_level = 10
-    LOG.setLevel(log_level)
+    #  LOG.setLevel(log_level)
+    loggers = [logging.getLogger(name) for name in logging.root.manager.loggerDict]
+    for l in loggers:
+        l.setLevel(log_level)
     LOG.debug("Runtime config:\n%s", pformat(cfg.__dict__, indent=2))
     inbuf = BytesIO()
     outbuf = BytesIO()
@@ -75,8 +77,7 @@ def main():
         )
         im.paste(watermark_image, pos, mask)
 
-    if cfg.use_tinify or cfg.use_tinify:
-        tinify.tinify.key = cfg.tinify_api_key
+    if cfg.use_tinify:
         im.save(outbuf, "JPEG")
         try:
             outbuf = (

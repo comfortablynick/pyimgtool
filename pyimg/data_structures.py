@@ -1,13 +1,14 @@
-"""Data containers."""
+"""Classes, enums, and misc data containers."""
 
-from enum import Enum
-from dataclasses import dataclass
-from pathlib import Path
 import argparse
 import configparser
-import tinify
 import logging
 import sys
+from dataclasses import dataclass
+from enum import Enum
+from pathlib import Path
+
+import tinify
 
 LOG = logging.getLogger(__name__)
 
@@ -80,18 +81,19 @@ class Config:
             cp.set("GENERAL", "use_tinify", str(use_tinify))
         if not cp.has_option("TINIFY", "api_key"):
             cp.set("TINIFY", "api_key", api_key)
-        if (use_tinify or args.use_tinify) and not api_key:
-            try:
-                api_key = input("Enter Tinify API key: ")
-                tinify.key = api_key
-                tinify.validate()
-            except tinify.Error:
-                print("Invalid Tinify API key: '%s'", sys.stderr)
-                sys.exit(1)
-            if api_key:
-                LOG.info("User input for Tinify API key: '%s'", api_key)
-                print("Tinify API key will be saved to conf.ini file.")
-                cp.set("TINIFY", "api_key", api_key)
+        if use_tinify or args.use_tinify:
+            if not api_key:
+                try:
+                    api_key = input("Enter Tinify API key: ")
+                    tinify.validate()
+                except tinify.Error:
+                    print("Invalid Tinify API key: '%s'", sys.stderr)
+                    sys.exit(1)
+                if api_key:
+                    LOG.info("User input for Tinify API key: '%s'", api_key)
+                    print("Tinify API key will be saved to conf.ini file.")
+                    cp.set("TINIFY", "api_key", api_key)
+            tinify.key = api_key
         with open(args.config_file, "w") as f:
             cp.write(f)
         cfg = Config(tinify_api_key=api_key, use_tinify=use_tinify)
