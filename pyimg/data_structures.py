@@ -9,8 +9,6 @@ from enum import Enum
 from pathlib import Path
 from typing import Optional, Tuple
 
-import tinify
-
 LOG = logging.getLogger(__name__)
 
 
@@ -49,8 +47,6 @@ class Config:
     output_file: Optional[Path] = None
     verbosity: int = 0
     suffix: Optional[str] = None
-    tinify_api_key: Optional[str] = None
-    use_tinify: bool = False
     no_op: bool = False
     pct_scale: float = 0
     width: int = 0
@@ -66,59 +62,23 @@ class Config:
     @staticmethod
     def from_args(args: argparse.Namespace):
         """Create Config instance from file and command line args."""
-        cp = configparser.ConfigParser()
-        cp.read(args.config_file)
-        config_sections = ["GENERAL", "TINIFY"]
-
-        for sec in config_sections:
-            try:
-                cp.add_section(sec)
-            except configparser.DuplicateSectionError:
-                pass
-
-        use_tinify = cp.getboolean("GENERAL", "use_tinify", fallback=False)
-        api_key = cp.get("TINIFY", "api_key", fallback="")
-        if not cp.has_option("GENERAL", "use_tinify"):
-            cp.set("GENERAL", "use_tinify", str(use_tinify))
-        if not cp.has_option("TINIFY", "api_key"):
-            cp.set("TINIFY", "api_key", api_key)
-        if use_tinify or args.use_tinify:
-            if not api_key:
-                try:
-                    api_key = input("Enter Tinify API key: ")
-                    tinify.validate()
-                except tinify.Error:
-                    print("Invalid Tinify API key: '%s'", sys.stderr)
-                    sys.exit(1)
-                if api_key:
-                    LOG.info("User input for Tinify API key: '%s'", api_key)
-                    print("Tinify API key will be saved to conf.ini file.")
-                    cp.set("TINIFY", "api_key", api_key)
-            tinify.key = api_key
-        with open(args.config_file, "w") as f:
-            cp.write(f)
-        cfg = Config(tinify_api_key=api_key, use_tinify=use_tinify)
-        cfg.merge_cli_args(args)
+        cfg = Config()
+        cfg.input_file = args.input
+        cfg.output_file = args.output
+        cfg.verbosity = args.verbosity
+        cfg.suffix = args.suffix
+        cfg.no_op = args.no_op
+        cfg.pct_scale = args.pct_scale
+        cfg.width = args.width
+        cfg.height = args.height
+        cfg.keep_exif = args.keep_exif
+        cfg.watermark_text = args.watermark_text
+        cfg.watermark_image = args.watermark_image
+        cfg.watermark_rotation = args.watermark_rotation
+        cfg.watermark_opacity = args.watermark_opacity
+        cfg.watermark_position = args.watermark_position
+        cfg.jpg_quality = args.jpg_quality
         return cfg
-
-    def merge_cli_args(self, args: argparse.Namespace):
-        """Update existing config object from command line args."""
-        self.input_file = args.input
-        self.output_file = args.output
-        self.verbosity = args.verbosity
-        self.suffix = args.suffix
-        self.use_tinify = args.use_tinify
-        self.no_op = args.no_op
-        self.pct_scale = args.pct_scale
-        self.width = args.width
-        self.height = args.height
-        self.keep_exif = args.keep_exif
-        self.watermark_text = args.watermark_text
-        self.watermark_image = args.watermark_image
-        self.watermark_rotation = args.watermark_rotation
-        self.watermark_opacity = args.watermark_opacity
-        self.watermark_position = args.watermark_position
-        self.jpg_quality = args.jpg_quality
 
 
 @dataclass

@@ -12,7 +12,7 @@ def parse_args(args: list):
     """Parse command line arguments."""
     # flags
     desc = (
-        "A command-line utility which uses the vips library to manipulate "
+        "A command-line utility which uses the Pillow module to manipulate "
         "images for web vewing. Images can be resampled, resized, and "
         "compressed at custom quality levels. Watermarking can also be added."
     )
@@ -46,12 +46,6 @@ def parse_args(args: list):
         metavar="TEXT",
         dest="suffix",
         default="_edited",
-    )
-    parser.add_argument(
-        "-t",
-        help="use tinify API for resize/compression",
-        action="store_true",
-        dest="use_tinify",
     )
     parser.add_argument(
         "-n",

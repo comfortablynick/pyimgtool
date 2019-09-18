@@ -6,7 +6,6 @@ import sys
 from io import BytesIO
 import piexif
 
-import tinify
 from PIL import Image
 
 from pyimg.data_structures import Config, ImageContext
@@ -78,29 +77,10 @@ def process_image(cfg: Config) -> ImageContext:
         )
         im.paste(watermark_image, pos, mask)
 
-    if cfg.use_tinify:
-        im.save(outbuf, "JPEG")
-        try:
-            outbuf = (
-                # tinify.tinify.from_buffer(outbuf.getvalue())
-                tinify.tinify.from_file(cfg.input_file)
-                .resize(method="fit", width=cfg.width, height=cfg.height)
-                .to_buffer()
-            )
-            LOG.info("Tinify monthly count: %d", tinify.tinify.compression_count)
-        except tinify.errors.AccountError:
-            print(
-                "Tinify API key invalid; check API key and try again.", file=sys.stderr
-            )
-            LOG.critical(
-                "Aborting due to invalid Tinify API key: '%s'", cfg.tinify_api_key
-            )
-            sys.exit(1)
-    else:
-        im.thumbnail((cfg.width, cfg.height), Image.ANTIALIAS)
-        ctx.new_dpi = im.info["dpi"]
-        im.save(outbuf, "JPEG", quality=cfg.jpg_quality, dpi=ctx.orig_dpi)
-        ctx.image_buffer = outbuf.getvalue()
+    im.thumbnail((cfg.width, cfg.height), Image.ANTIALIAS)
+    ctx.new_dpi = im.info["dpi"]
+    im.save(outbuf, "JPEG", quality=cfg.jpg_quality, dpi=ctx.orig_dpi)
+    ctx.image_buffer = outbuf.getvalue()
 
     # convert back to image to get size
     if ctx.image_buffer:
