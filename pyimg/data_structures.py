@@ -7,6 +7,7 @@ import sys
 from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
+from typing import Optional
 
 import tinify
 
@@ -44,23 +45,23 @@ class Position(Enum):
 class Config:
     """Store options from config file and command line."""
 
-    input_file: Path = None
-    output_file: Path = None
+    input_file: Optional[Path] = None
+    output_file: Optional[Path] = None
     verbosity: int = 0
-    suffix: str = None
-    tinify_api_key: str = None
+    suffix: Optional[str] = None
+    tinify_api_key: Optional[str] = None
     use_tinify: bool = False
     no_op: bool = False
-    pct_scale: float = None
-    width: int = None
-    height: int = None
+    pct_scale: float = 0
+    width: int = 0
+    height: int = 0
     keep_exif: bool = False
-    watermark_text: str = None
-    watermark_image: Path = None
-    watermark_rotation: int = None
-    watermark_opacity: float = None
-    watermark_position: Position = None
-    jpg_quality: int = None
+    watermark_text: Optional[str] = None
+    watermark_image: Optional[Path] = None
+    watermark_rotation: int = 0
+    watermark_opacity: float = 0
+    watermark_position: Optional[Position] = None
+    jpg_quality: int = 0
 
     @staticmethod
     def from_args(args: argparse.Namespace):
@@ -118,3 +119,21 @@ class Config:
         self.watermark_opacity = args.watermark_opacity
         self.watermark_position = args.watermark_position
         self.jpg_quality = args.jpg_quality
+
+
+@dataclass
+class ImageSize:
+    """Pixel dimensions of image."""
+
+    width: int = 0
+    height: int = 0
+
+
+@dataclass
+class ImageContext:
+    """Store details about the image being processed."""
+
+    orig_size: ImageSize = ImageSize()
+    new_size: ImageSize = ImageSize()
+    orig_file_size: int = 0
+    new_file_size: int = 0
