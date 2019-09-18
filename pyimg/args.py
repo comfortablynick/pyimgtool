@@ -3,7 +3,7 @@ import argparse
 import logging
 from pathlib import Path
 
-from data_structures import Position
+from pyimg.data_structures import Position
 
 LOG = logging.getLogger(__name__)
 
@@ -27,7 +27,7 @@ def parse_args(args: list):
         "-c",
         help="read from this config file (default: conf.ini)",
         dest="config_file",
-        default="conf.ini",
+        default="../conf.ini",
     )
     parser.add_argument(
         "-v",

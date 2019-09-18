@@ -7,7 +7,7 @@ import sys
 from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
-from typing import Optional
+from typing import Optional, Tuple
 
 import tinify
 
@@ -137,3 +137,18 @@ class ImageContext:
     new_size: ImageSize = ImageSize()
     orig_file_size: int = 0
     new_file_size: int = 0
+    orig_dpi: Tuple[int, int] = (0, 0)
+    new_dpi: Tuple[int, int] = (0, 0)
+    image_buffer: Optional[bytes] = None
+    orig_exif: Optional[dict] = None
+
+    def as_dict_copy(self) -> dict:
+        """Return dict representation as copy without `image_buffer` included."""
+        out = self.__dict__.copy()
+        try:
+            del out["image_buffer"]
+            del out["orig_exif"]
+        except KeyError:
+            pass
+        return out
+
