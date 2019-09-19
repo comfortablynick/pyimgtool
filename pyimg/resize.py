@@ -3,13 +3,17 @@
 Based on original code from:
 https://github.com/VingtCinq/python-resize-image
 """
+import logging
 import math
 import sys
 from functools import wraps
 from typing import Tuple
 
 from PIL import Image
+
 from pyimg.exceptions import ImageSizeError
+
+LOG = logging.getLogger(__name__)
 
 
 def validate(validator):
@@ -96,7 +100,9 @@ def resize_crop(image: Image, size: Tuple[int, int]) -> Image:
 
 @validate(_is_big_enough)
 def resize_cover(image: Image, size: Tuple[int, int], resample=Image.LANCZOS) -> Image:
-    """Resize image according to size.
+    """Resize image to fill the specified area; crop as needed.
+
+    Same behavior as `background-size: cover`.
 
     Parameters
     ----------
@@ -128,11 +134,12 @@ def resize_contain(
     size: Tuple[int, int],
     resample=Image.LANCZOS,
     bg_color: Tuple[int, int, int, int] = (255, 255, 255, 0),
+    bg_size: Tuple[int, int] = None,
 ) -> Image:
     """Resize image to fill specified area.
 
-    Image is not cropped and aspect ratio is kept intact. Behavior is
-    the same as `background-size: contain`.
+    Image is not cropped and aspect ratio is kept intact.
+    Same behavior as `background-size: contain`.
 
     Parameters
     ----------
@@ -140,6 +147,7 @@ def resize_contain(
     - `size` 2-Tuple of image dimensions (width, height)
     - `resample` Resample method
     - `bg_color` RGBA Tuple for background (if image smaller than `size`)
+    - `bg_size` Background size (if different from `size`)
 
     Returns
     -------
@@ -149,14 +157,16 @@ def resize_contain(
     img_format = image.format
     img = image.copy()
     img.thumbnail((size[0], size[1]), resample)
-    background = Image.new("RGBA", (size[0], size[1]), bg_color)
+    if not bg_size:
+        bg_size = size
+    background = Image.new("RGBA", bg_size, bg_color)
     img_position = (
-        int(math.ceil((size[0] - img.size[0]) / 2)),
-        int(math.ceil((size[1] - img.size[1]) / 2)),
+        int(math.ceil((bg_size[0] - img.size[0]) / 2)),
+        int(math.ceil((bg_size[1] - img.size[1]) / 2)),
     )
     background.paste(img, img_position)
     background.format = img_format
-    return background.convert("RGBA")
+    return background.convert("RGB")
 
 
 @validate(_width_is_big_enough)
@@ -257,4 +267,6 @@ def resize(method, *args, **kwargs):
         raise ValueError(
             f"method argument should be one of: {', '.join([ repr(m) for m in valid_methods])}"
         )
-    return getattr(sys.modules[__name__], "resize_%s" % method)(*args, **kwargs)
+    method = f"resize_{method}"
+    LOG.info("Resizing with %s()", method)
+    return getattr(sys.modules[__name__], method)(*args, **kwargs)

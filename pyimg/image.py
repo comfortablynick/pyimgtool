@@ -9,7 +9,7 @@ import piexif
 from PIL import Image
 
 from pyimg.data_structures import Config, ImageContext
-from pyimg.resize import resize
+from pyimg import resize
 
 LOG = logging.getLogger(__name__)
 
@@ -78,9 +78,17 @@ def process_image(cfg: Config) -> ImageContext:
         )
         im.paste(watermark_image, pos, mask)
 
-    # im.thumbnail((cfg.width, cfg.height), Image.ANTIALIAS)
-    im = resize("thumbnail", im, (cfg.width, cfg.height), resample=Image.ANTIALIAS)
-    ctx.new_dpi = im.info["dpi"]
+    im = resize.resize_contain(
+        im,
+        (cfg.width, cfg.height),
+        bg_size=(cfg.width + 50, cfg.height + 50),
+        resample=Image.ANTIALIAS,
+    )
+    try:
+        ctx.new_dpi = im.info["dpi"]
+    except KeyError:
+        pass
+    LOG.info("Image mode: %s", im.mode)
     im.save(outbuf, "JPEG", quality=cfg.jpg_quality, dpi=ctx.orig_dpi)
     ctx.image_buffer = outbuf.getvalue()
 
