@@ -9,6 +9,7 @@ import piexif
 from PIL import Image
 
 from pyimg.data_structures import Config, ImageContext
+from pyimg.resize import resize
 
 LOG = logging.getLogger(__name__)
 
@@ -77,7 +78,8 @@ def process_image(cfg: Config) -> ImageContext:
         )
         im.paste(watermark_image, pos, mask)
 
-    im.thumbnail((cfg.width, cfg.height), Image.ANTIALIAS)
+    # im.thumbnail((cfg.width, cfg.height), Image.ANTIALIAS)
+    im = resize("thumbnail", im, (cfg.width, cfg.height), resample=Image.ANTIALIAS)
     ctx.new_dpi = im.info["dpi"]
     im.save(outbuf, "JPEG", quality=cfg.jpg_quality, dpi=ctx.orig_dpi)
     ctx.image_buffer = outbuf.getvalue()
