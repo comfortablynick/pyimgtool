@@ -1,9 +1,7 @@
 """Classes, enums, and misc data containers."""
 
 import argparse
-import configparser
 import logging
-import sys
 from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
@@ -111,4 +109,3 @@ class ImageContext:
         except KeyError:
             pass
         return out
-
