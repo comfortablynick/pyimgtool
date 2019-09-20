@@ -11,7 +11,7 @@ alias install := runtest # in case vim calls it
 
 # Run with optional args
 runargs +args='':
-	python {{bin_name}} {{args}}
+	{{bin_name}} {{test_file_in}} {{test_file_out}} -vv -wi {{test_watermark_file}} {{args}}
 
 # test
 runtest:
@@ -20,10 +20,6 @@ runtest:
 # test watermark image
 runwi +args='':
     {{bin_name}} {{test_file_in}} {{test_file_out}} -v -mw 2000 -mh 2000 -wi {{test_watermark_file}} {{args}}
-
-# test watermark image (tinify)
-runwit +args='':
-    {{bin_name}} {{test_file_in}} {{test_file_out}} -v -mw 2000 -mh 2000 -wi {{test_watermark_file}} -t {{args}}
 
 # show prog help
 help:

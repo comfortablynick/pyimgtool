@@ -4,12 +4,12 @@ import logging
 import os
 import sys
 from io import BytesIO
-import piexif
 
+import piexif
 from PIL import Image
 
-from pyimg.data_structures import Config, ImageContext
 from pyimg import resize
+from pyimg.data_structures import Config, ImageContext
 
 LOG = logging.getLogger(__name__)
 
@@ -55,6 +55,7 @@ def process_image(cfg: Config) -> ImageContext:
         LOG.info("Scaling image by %.1f%%", cfg.pct_scale)
         cfg.width = int(round(ctx.orig_size.width * (cfg.pct_scale / 100.0)))
         cfg.height = int(round(ctx.orig_size.height * (cfg.pct_scale / 100.0)))
+
     if cfg.width and not cfg.height:
         LOG.info("Calculating height based on width")
         cfg.height = int(
@@ -65,6 +66,11 @@ def process_image(cfg: Config) -> ImageContext:
         cfg.width = int(
             round((cfg.height * ctx.orig_size.width) / ctx.orig_size.height)
         )
+    #  elif not cfg.width and not cfg.height:
+    else:
+        LOG.info("No new width or height supplied; using current dims")
+        cfg.width = ctx.orig_size.width
+        cfg.height = ctx.orig_size.height
 
     if cfg.watermark_image:
         watermark_image = Image.open(os.path.expanduser(cfg.watermark_image)).convert(
@@ -78,10 +84,10 @@ def process_image(cfg: Config) -> ImageContext:
         )
         im.paste(watermark_image, pos, mask)
 
-    im = resize.resize_contain(
+    im = resize.resize_thumbnail(
         im,
         (cfg.width, cfg.height),
-        bg_size=(cfg.width + 50, cfg.height + 50),
+        #  bg_size=(cfg.width + 50, cfg.height + 50),
         resample=Image.ANTIALIAS,
     )
     try:

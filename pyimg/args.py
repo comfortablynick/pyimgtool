@@ -64,7 +64,7 @@ def parse_args(args: list):
         type=float,
     )
     image_group.add_argument(
-        "-mw", help="maximum width of output", dest="width", metavar="WIDTH", type=int
+        "-mw", help="maximum width of output", dest="width", metavar="WIDTH", type=int, default=0,
     )
     image_group.add_argument(
         "-mh",
@@ -72,6 +72,7 @@ def parse_args(args: list):
         dest="height",
         metavar="HEIGHT",
         type=int,
+        default=0,
     )
     image_group.add_argument(
         "-ke", help="keep exif data if possible", dest="keep_exif", action="store_true"
