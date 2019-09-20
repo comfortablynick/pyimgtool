@@ -4,3 +4,4 @@ conf.ini
 *_edited.jpg
 .vscode/
 __pycache__/
+.venv/
