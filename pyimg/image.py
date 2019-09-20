@@ -8,7 +8,7 @@ from io import BytesIO
 import piexif
 from PIL import Image
 
-from pyimg import resize
+from pyimg import resize, watermark
 from pyimg.data_structures import Config, ImageContext
 
 LOG = logging.getLogger(__name__)
@@ -72,29 +72,24 @@ def process_image(cfg: Config) -> ImageContext:
         cfg.width = ctx.orig_size.width
         cfg.height = ctx.orig_size.height
 
-    if cfg.watermark_image:
-        watermark_image = Image.open(os.path.expanduser(cfg.watermark_image)).convert(
-            "RGBA"
-        )
+    if cfg.watermark_image is not None:
+        im = watermark.with_image(im, cfg, ctx)
 
-        mask = watermark_image.split()[3].point(lambda i: i * cfg.watermark_opacity)
-        pos = (
-            (ctx.orig_size.width - watermark_image.width - 25),
-            (ctx.orig_size.height - watermark_image.height - 25),
-        )
-        im.paste(watermark_image, pos, mask)
-
+    # Resize/resample
     im = resize.resize_thumbnail(
         im,
         (cfg.width, cfg.height),
         #  bg_size=(cfg.width + 50, cfg.height + 50),
         resample=Image.ANTIALIAS,
     )
+
     try:
         ctx.new_dpi = im.info["dpi"]
     except KeyError:
         pass
     LOG.info("Image mode: %s", im.mode)
+
+    # Save
     im.save(outbuf, "JPEG", quality=cfg.jpg_quality, dpi=ctx.orig_dpi)
     ctx.image_buffer = outbuf.getvalue()
 

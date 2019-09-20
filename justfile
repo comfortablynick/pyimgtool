@@ -1,7 +1,7 @@
-bin_name := './bin/pyimg'
-test_file_in := '../test/sunset.jpg'
-test_file_out := '../test/sunset_edited.jpg'
-test_watermark_file := '../test/logo.png'
+bin_name := 'pyimg'
+test_file_in := 'test/sunset.jpg'
+test_file_out := 'test/sunset_edited.jpg'
+test_watermark_file := 'test/logo.png'
 
 alias r := runargs
 alias run := runtest
