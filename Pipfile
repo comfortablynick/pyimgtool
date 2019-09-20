@@ -15,6 +15,7 @@ black = "*"
 [packages]
 pillow = "*"
 piexif = "*"
+pyimg = {editable = true,path = "."}
 
 [requires]
 python_version = "3.7"

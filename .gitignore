@@ -5,3 +5,4 @@ conf.ini
 .vscode/
 __pycache__/
 .venv/
+*egg-info/
