@@ -18,7 +18,7 @@ piexif = "*"
 pyimg = {editable = true,path = "."}
 
 [requires]
-python_version = "3.7"
+python_version = "3.8"
 
 [pipenv]
 allow_prereleases = true

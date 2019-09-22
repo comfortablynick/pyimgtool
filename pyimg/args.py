@@ -64,7 +64,12 @@ def parse_args(args: list):
         type=float,
     )
     image_group.add_argument(
-        "-mw", help="maximum width of output", dest="width", metavar="WIDTH", type=int, default=0,
+        "-mw",
+        help="maximum width of output",
+        dest="width",
+        metavar="WIDTH",
+        type=int,
+        default=0,
     )
     image_group.add_argument(
         "-mh",

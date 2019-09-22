@@ -37,6 +37,8 @@ def with_text(im: Image, cfg: Config, ctx: ImageContext) -> Image:
     )
     font = ImageFont.truetype("SourceSansPro-Regular.ttf", 16)
     d = ImageDraw.Draw(layer)
-    d.text((10, 10), cfg.watermark_text, font=font, fill=(255, 255, 255, 128)) # last num is alpha
+    d.text(
+        (10, 10), cfg.watermark_text, font=font, fill=(255, 255, 255, 128)
+    )  # last num is alpha
     out = Image.alpha_composite(im, layer)
     return out
