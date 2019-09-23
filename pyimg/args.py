@@ -1,4 +1,5 @@
 """Configuration and argument parsing."""
+
 import argparse
 import logging
 from pathlib import Path

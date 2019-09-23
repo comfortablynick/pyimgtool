@@ -4,7 +4,7 @@ import argparse
 import logging
 from enum import Enum
 from pathlib import Path
-from typing import Optional, Tuple
+from typing import List, Optional, Tuple
 
 # from dataclasses import dataclass
 import attr
@@ -80,6 +80,22 @@ class Config:
         cfg.jpg_quality = args.jpg_quality
         return cfg
 
+    def as_dict(self, exclude_attrs: List[str] = []) -> dict:
+        """Return dict representation of object.
+
+        Parameters
+        ----------
+        - `exclude_attrs` List of attribute names to exclude from dict output
+
+        Returns
+        -------
+        - dict
+
+        """
+        return attr.asdict(
+            self, filter=lambda attr, value: attr.name not in exclude_attrs
+        )
+
 
 @attr.s(auto_attribs=True)
 class ImageSize:
@@ -102,12 +118,18 @@ class ImageContext:
     image_buffer: Optional[bytes] = None
     orig_exif: Optional[dict] = None
 
-    def as_dict_copy(self) -> dict:
-        """Return dict representation as copy without `image_buffer` included."""
-        out = self.__dict__.copy()
-        try:
-            del out["image_buffer"]
-            del out["orig_exif"]
-        except KeyError:
-            pass
-        return out
+    def as_dict(self, exclude_attrs: List[str] = ["image_buffer", "orig_exif"]) -> dict:
+        """Return dict representation of object.
+
+        Parameters
+        ----------
+        - `exclude_attrs` List of attribute names to exclude from dict output
+
+        Returns
+        -------
+        - dict
+
+        """
+        return attr.asdict(
+            self, filter=lambda attr, value: attr.name not in exclude_attrs
+        )

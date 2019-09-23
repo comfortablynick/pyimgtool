@@ -1,4 +1,5 @@
 """Resize and watermark images."""
+
 import logging
 import sys
 from pprint import pformat
@@ -7,8 +8,7 @@ from pyimg.args import parse_args
 from pyimg.data_structures import Config
 from pyimg.image import process_image
 
-
-logging.basicConfig(level=logging.DEBUG)
+logging.basicConfig(level=logging.WARNING)
 LOG = logging.getLogger(__name__)
 
 
@@ -25,11 +25,11 @@ def main():
     for l in loggers:
         l.setLevel(log_level)
 
-    LOG.debug("Runtime config:\n%s", pformat(cfg.__dict__, indent=2))
+    LOG.debug("Runtime config:\n%s", pformat(cfg.as_dict(), indent=2))
 
     ctx = process_image(cfg)
 
-    LOG.debug("Image Context:\n%s", pformat(ctx.as_dict_copy(), indent=2))
+    LOG.debug("Image Context:\n%s", pformat(ctx.as_dict(), indent=2))
 
     if not cfg.no_op:
         if not ctx.image_buffer:
