@@ -5,7 +5,7 @@ import os
 
 from PIL import Image, ImageDraw, ImageFont
 
-from pyimg.data_structures import Config, ImageContext
+from pyimg.data_structures import Config, ImageContext, ImageSize
 
 LOG = logging.getLogger(__name__)
 
@@ -18,6 +18,11 @@ def with_image(im: Image, cfg: Config, ctx: ImageContext) -> Image:
     watermark_image = Image.open(os.path.expanduser(cfg.watermark_image)).convert(
         "RGBA"
     )
+    watermark_size = ImageSize(watermark_image.width, watermark_image.height)
+    LOG.info("Watermark dims: %s", watermark_size)
+    # watermark_ratio = round((watermark_size.area / ctx.orig_size.area) * 100, 2)
+    # watermark_ratio = max(watermark_size) / max(ctx.orig_size)
+    # LOG.info("Watermark pct of image size: %.2f%%", watermark_ratio)
     mask = watermark_image.split()[3].point(lambda i: i * cfg.watermark_opacity)
     pos = (
         (ctx.orig_size.width - watermark_image.width - 25),
