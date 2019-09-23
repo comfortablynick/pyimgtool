@@ -3,28 +3,17 @@
 import logging
 import sys
 from io import BytesIO
+from typing import Optional, Tuple
 
+import attr
 import piexif
 from PIL import Image
 
 from pyimg import resize, watermark
 from pyimg.data_structures import Config, ImageContext
+from pyimg.utils import humanize_bytes
 
 LOG = logging.getLogger(__name__)
-
-
-def humanize_bytes(num, suffix="B", si_prefix=False, round_digits=2) -> str:
-    """Return a human friendly byte representation.
-
-    Modified from: https://stackoverflow.com/questions/1094841/1094933#1094933
-    """
-    div = 1000.0 if si_prefix else 1024.0
-    unit_suffix = "i" if si_prefix else ""
-    for unit in ["", "k", "M", "G", "T", "P", "E", "Z"]:
-        if abs(num) < div:
-            return f"{num:3.{round_digits}f} {unit}{unit_suffix}{suffix}"
-        num /= div
-    return f"{num:3.{round_digits}f} Y{unit_suffix}{suffix}"
 
 
 def calculate_new_size(cfg: Config, ctx: ImageContext):
@@ -36,8 +25,7 @@ def calculate_new_size(cfg: Config, ctx: ImageContext):
         LOG.info("Scaling image by %.1f%%", cfg.pct_scale)
         cfg.width = int(round(ctx.orig_size.width * (cfg.pct_scale / 100.0)))
         cfg.height = int(round(ctx.orig_size.height * (cfg.pct_scale / 100.0)))
-
-    if cfg.width and not cfg.height:
+    elif cfg.width and not cfg.height:
         LOG.info("Calculating height based on width")
         cfg.height = int(
             round((cfg.width * ctx.orig_size.height) / ctx.orig_size.width)

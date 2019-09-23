@@ -6,7 +6,6 @@ from enum import Enum
 from pathlib import Path
 from typing import List, Optional, Tuple
 
-# from dataclasses import dataclass
 import attr
 
 LOG = logging.getLogger(__name__)
@@ -103,6 +102,11 @@ class ImageSize:
 
     width: int = 0
     height: int = 0
+
+    @property
+    def area(self) -> int:
+        """Pixel area of image."""
+        return self.width * self.height
 
 
 @attr.s(auto_attribs=True)
