@@ -2,10 +2,12 @@
 
 import argparse
 import logging
-from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
 from typing import Optional, Tuple
+
+# from dataclasses import dataclass
+import attr
 
 LOG = logging.getLogger(__name__)
 
@@ -37,7 +39,7 @@ class Position(Enum):
             return s
 
 
-@dataclass
+@attr.s(auto_attribs=True)
 class Config:
     """Store options from config file and command line."""
 
@@ -79,7 +81,7 @@ class Config:
         return cfg
 
 
-@dataclass
+@attr.s(auto_attribs=True)
 class ImageSize:
     """Pixel dimensions of image."""
 
@@ -87,7 +89,7 @@ class ImageSize:
     height: int = 0
 
 
-@dataclass
+@attr.s(auto_attribs=True)
 class ImageContext:
     """Store details about the image being processed."""
 

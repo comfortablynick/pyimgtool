@@ -16,9 +16,10 @@ black = "*"
 pillow = "*"
 piexif = "*"
 pyimg = {editable = true,path = "."}
+attrs = "*"
 
 [requires]
-python_version = "3.8"
+python_version = "3.6.1"
 
 [pipenv]
 allow_prereleases = true

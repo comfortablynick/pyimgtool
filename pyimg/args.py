@@ -140,7 +140,7 @@ def parse_args(args: list):
         parser._positionals.title = "Arguments"
     if parser._optionals.title is not None:
         parser._optionals.title = "Options"
-    parsed = parser.parse_intermixed_args(args)
+    parsed = parser.parse_args(args)
 
     # do basic validation
     if not 0 <= parsed.jpg_quality <= 100:
