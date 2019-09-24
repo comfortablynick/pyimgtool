@@ -42,19 +42,19 @@ def validate(validator):
     return decorator
 
 
-def _is_big_enough(image, size):
+def _is_big_enough(image: Image, size: Tuple[int, int]):
     """Check that the image's size superior to `size`."""
     if (size[0] > image.size[0]) and (size[1] > image.size[1]):
         raise ImageSizeError(image.size, size)
 
 
-def _width_is_big_enough(image, width):
+def _width_is_big_enough(image: Image, width: int):
     """Check that the image width is superior to `width`."""
     if width > image.size[0]:
         raise ImageSizeError(image.size[0], width)
 
 
-def _height_is_big_enough(image: Image, height: int):
+def _height_is_big_enough(image: Image, size: Tuple[int, int]):
     """Check that the image height is superior to `height`.
 
     Raise ImageSizeError if image height < `height`.
@@ -65,8 +65,8 @@ def _height_is_big_enough(image: Image, height: int):
     - `height` Integer of image height
 
     """
-    if height > image.size[1]:
-        raise ImageSizeError(image.size[1], height)
+    if size[1] > image.size[1]:
+        raise ImageSizeError(image.size[1], size[1])
 
 
 @validate(_is_big_enough)

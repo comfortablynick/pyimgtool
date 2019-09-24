@@ -125,6 +125,14 @@ def parse_args(args: list):
         type=Position.argparse,
         choices=list(Position),
     )
+    watermark_group.add_argument(
+        "-ws",
+        help="watermark scale in percent of image size (default = 10)",
+        dest="watermark_scale",
+        metavar="SCALE",
+        default=0.1,
+        type=float,
+    )
 
     # Jpg group
     jpg_group = parser.add_argument_group("Jpeg options")
@@ -152,4 +160,8 @@ def parse_args(args: list):
 
     if parsed.pct_scale and (parsed.width or parsed.height):
         parser.error("Can use either -p or -mw/-mh, not both")
+
+    if not 0 <= parsed.watermark_scale <= 1:
+        parser.error("Value out of bounds: -ws must be between 0 and 1")
+
     return parsed

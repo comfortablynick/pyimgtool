@@ -8,7 +8,6 @@ pydocstyle = "*"
 flake8 = "*"
 mypy = "*"
 jedi = "*"
-pylint = "*"
 rope = "*"
 black = "*"
 

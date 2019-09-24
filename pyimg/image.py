@@ -10,13 +10,13 @@ import piexif
 from PIL import Image
 
 from pyimg import resize, watermark
-from pyimg.data_structures import Config, ImageContext
+from pyimg.data_structures import Config, Context
 from pyimg.utils import humanize_bytes
 
 LOG = logging.getLogger(__name__)
 
 
-def calculate_new_size(cfg: Config, ctx: ImageContext):
+def calculate_new_size(cfg: Config, ctx: Context):
     """Update Config with correct width/height.
 
     Percent scale (-p) takes precedence over width (-mw) and height (-mh).
@@ -41,9 +41,9 @@ def calculate_new_size(cfg: Config, ctx: ImageContext):
         cfg.height = ctx.orig_size.height
 
 
-def process_image(cfg: Config) -> ImageContext:
+def process_image(cfg: Config) -> Context:
     """Process image according to options in `cfg`."""
-    ctx = ImageContext()
+    ctx = Context()
     inbuf = BytesIO()
     outbuf = BytesIO()
     if not cfg.input_file:
@@ -92,7 +92,7 @@ def process_image(cfg: Config) -> ImageContext:
     # convert back to image to get size
     if ctx.image_buffer:
         img_out = Image.open(BytesIO(ctx.image_buffer))
-        ctx.new_size = img_out.size
+        ctx.new_size.width, ctx.new_size.height = img_out.size
         ctx.new_file_size = sys.getsizeof(ctx.image_buffer)
     LOG.info("Output size: %s", humanize_bytes(ctx.new_file_size))
     return ctx

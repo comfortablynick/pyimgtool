@@ -17,7 +17,6 @@ class Position(Enum):
     TOP_LEFT = "top-left"
     TOP_RIGHT = "top-right"
     BOTTOM_RIGHT = "bottom-right"
-
     BOTTOM_LEFT = "bottom-left"
 
     def __str__(self):
@@ -30,7 +29,13 @@ class Position(Enum):
 
     @staticmethod
     def argparse(s):
-        """Parse string values from CLI into Position."""
+        """Parse string values from CLI into Position.
+
+        Parameters
+        ----------
+        - `s` String value to match against enum attribute
+
+        """
         vals = {x.value.lower(): x for x in list(Position)}
         try:
             return vals[s.lower()]
@@ -56,6 +61,7 @@ class Config:
     watermark_rotation: int = 0
     watermark_opacity: float = 0
     watermark_position: Optional[Position] = None
+    watermark_scale: float = 0
     jpg_quality: int = 0
 
     @staticmethod
@@ -76,6 +82,7 @@ class Config:
         cfg.watermark_rotation = args.watermark_rotation
         cfg.watermark_opacity = args.watermark_opacity
         cfg.watermark_position = args.watermark_position
+        cfg.watermark_scale = args.watermark_scale
         cfg.jpg_quality = args.jpg_quality
         return cfg
 
@@ -103,6 +110,14 @@ class ImageSize:
     width: int = 0
     height: int = 0
 
+    def __str__(self):
+        """Return string representation, e.g.: width x height px."""
+        return f"{self.width} x {self.height} px"
+
+    def __repr__(self):
+        """Return string representation, same as __str__."""
+        return self.__str__
+
     @property
     def area(self) -> int:
         """Pixel area of image."""
@@ -110,11 +125,12 @@ class ImageSize:
 
 
 @attr.s(auto_attribs=True)
-class ImageContext:
-    """Store details about the image being processed."""
+class Context:
+    """Keep track of details of processing for later reporting."""
 
     orig_size: ImageSize = ImageSize()
     new_size: ImageSize = ImageSize()
+    watermark_size: ImageSize = ImageSize()
     orig_file_size: int = 0
     new_file_size: int = 0
     orig_dpi: Tuple[int, int] = (0, 0)
