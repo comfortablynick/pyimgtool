@@ -11,7 +11,7 @@ alias install := runtest # in case vim calls it
 
 # Run with optional args
 runargs +args='':
-	{{bin_name}} {{test_file_in}} {{test_file_out}} -vv -wi {{test_watermark_file}} {{args}}
+	{{bin_name}} {{test_file_in}} {{test_file_out}} {{args}}
 
 # test
 runtest:

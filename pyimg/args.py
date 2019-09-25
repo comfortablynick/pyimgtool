@@ -87,13 +87,6 @@ def parse_args(args: list):
     # Watermark group
     watermark_group = parser.add_argument_group("Watermark options")
     watermark_group.add_argument(
-        "-wt",
-        help="text to display in watermark",
-        type=str,
-        dest="watermark_text",
-        metavar="TEXT",
-    )
-    watermark_group.add_argument(
         "-wi",
         help="image file to use as watermark",
         type=Path,
@@ -133,6 +126,43 @@ def parse_args(args: list):
         default=0.1,
         type=float,
     )
+    text_group = parser.add_argument_group("Text options")
+    text_group.add_argument(
+        "-t", help="text to display on image", dest="text", metavar="TEXT", type=str
+    )
+    text_group.add_argument(
+        "-tr",
+        help="angle of text rotation",
+        dest="text_rotation",
+        metavar="ANGLE",
+        type=int,
+        default=0,
+    )
+    text_group.add_argument(
+        "-to",
+        help="text opacity",
+        dest="text_opacity",
+        type=float,
+        metavar="OPACITY",
+        default=0.3,
+    )
+    text_group.add_argument(
+        "-tp",
+        help="text position",
+        dest="text_position",
+        metavar="POS",
+        default=Position.BOTTOM_RIGHT,
+        type=Position.argparse,
+        choices=list(Position),
+    )
+    text_group.add_argument(
+        "-ts",
+        help="size of text in points",
+        dest="text_size",
+        metavar="SIZE",
+        default=16,
+        type=float,
+    )
 
     # Jpg group
     jpg_group = parser.add_argument_group("Jpeg options")
@@ -154,9 +184,6 @@ def parse_args(args: list):
     # do basic validation
     if not 0 <= parsed.jpg_quality <= 100:
         parser.error(f"Quality (-q) must be within 0-100; found: {parsed.jpg_quality}")
-
-    if parsed.watermark_text is not None and parsed.watermark_image is not None:
-        parser.error("Can use either -wt or -wf, not both")
 
     if parsed.pct_scale and (parsed.width or parsed.height):
         parser.error("Can use either -p or -mw/-mh, not both")

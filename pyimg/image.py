@@ -67,7 +67,7 @@ def process_image(cfg: Config) -> Context:
 
     if cfg.watermark_image is not None:
         im = watermark.with_image(im, cfg, ctx)
-    elif cfg.watermark_text is not None:
+    elif cfg.text is not None:
         im = watermark.with_text(im, cfg, ctx)
 
     # Resize/resample
@@ -86,7 +86,7 @@ def process_image(cfg: Config) -> Context:
     LOG.info("Image mode: %s", im.mode)
 
     # Save
-    im.save(outbuf, "JPEG", quality=cfg.jpg_quality, dpi=ctx.orig_dpi)
+    im.save(outbuf, "JPEG", quality=cfg.jpg_quality, dpi=ctx.orig_dpi, progressive=True)
     ctx.image_buffer = outbuf.getvalue()
 
     # convert back to image to get size

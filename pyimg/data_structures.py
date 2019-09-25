@@ -56,12 +56,16 @@ class Config:
     width: int = 0
     height: int = 0
     keep_exif: bool = False
-    watermark_text: Optional[str] = None
     watermark_image: Optional[Path] = None
     watermark_rotation: int = 0
     watermark_opacity: float = 0
     watermark_position: Optional[Position] = None
     watermark_scale: float = 0
+    text: Optional[str] = None
+    text_rotation: int = 0
+    text_opacity: float = 0
+    text_position: Optional[Position] = None
+    text_size: int = 0
     jpg_quality: int = 0
 
     @staticmethod
@@ -77,12 +81,16 @@ class Config:
         cfg.width = args.width
         cfg.height = args.height
         cfg.keep_exif = args.keep_exif
-        cfg.watermark_text = args.watermark_text
         cfg.watermark_image = args.watermark_image
         cfg.watermark_rotation = args.watermark_rotation
         cfg.watermark_opacity = args.watermark_opacity
         cfg.watermark_position = args.watermark_position
         cfg.watermark_scale = args.watermark_scale
+        cfg.text = args.text
+        cfg.text_rotation = args.text_rotation
+        cfg.text_opacity = args.text_opacity
+        cfg.text_position = args.text_position
+        cfg.text_size = args.text_size
         cfg.jpg_quality = args.jpg_quality
         return cfg
 
