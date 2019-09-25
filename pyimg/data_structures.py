@@ -145,6 +145,8 @@ class Context:
     new_dpi: Tuple[int, int] = (0, 0)
     image_buffer: Optional[bytes] = None
     orig_exif: Optional[dict] = None
+    time_start: float = 0
+    time_end: float = 0
 
     def as_dict(self, exclude_attrs: List[str] = ["image_buffer", "orig_exif"]) -> dict:
         """Return dict representation of object.
