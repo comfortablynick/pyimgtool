@@ -19,7 +19,10 @@ LOG = logging.getLogger(__name__)
 def calculate_new_size(cfg: Config, ctx: Context):
     """Update Config with correct width/height.
 
-    Percent scale (-p) takes precedence over width (-mw) and height (-mh).
+    Percent scale (`-p`) takes precedence over width (`-mw`) and
+    height (`-mh`). Func does nothing if both height and width
+    are supplied at the command line.
+
     """
     if cfg.pct_scale:
         LOG.info("Scaling image by %.1f%%", cfg.pct_scale)
@@ -35,7 +38,7 @@ def calculate_new_size(cfg: Config, ctx: Context):
         cfg.width = int(
             round((cfg.height * ctx.orig_size.width) / ctx.orig_size.height)
         )
-    else:
+    elif not cfg.height and not cfg.width:
         LOG.info("No new width or height supplied; using current dims")
         cfg.width = ctx.orig_size.width
         cfg.height = ctx.orig_size.height
@@ -67,7 +70,7 @@ def process_image(cfg: Config) -> Context:
 
     if cfg.watermark_image is not None:
         im = watermark.with_image(im, cfg, ctx)
-    elif cfg.text is not None:
+    if cfg.text is not None:
         im = watermark.with_text(im, cfg, ctx)
 
     # Resize/resample

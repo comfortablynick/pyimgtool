@@ -65,7 +65,7 @@ class Config:
     text_rotation: int = 0
     text_opacity: float = 0
     text_position: Optional[Position] = None
-    text_size: int = 0
+    text_scale: int = 0
     jpg_quality: int = 0
 
     @staticmethod
@@ -90,7 +90,7 @@ class Config:
         cfg.text_rotation = args.text_rotation
         cfg.text_opacity = args.text_opacity
         cfg.text_position = args.text_position
-        cfg.text_size = args.text_size
+        cfg.text_scale = args.text_scale
         cfg.jpg_quality = args.jpg_quality
         return cfg
 

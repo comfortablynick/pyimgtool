@@ -31,7 +31,10 @@ def main():
     LOG.debug("Runtime config:\n%s", pformat(cfg.as_dict(), indent=2))
     ctx = process_image(cfg)
     ctx.time_start = time_start
-    LOG.debug("Image Context:\n%s", pformat(ctx.as_dict(), indent=2))
+    LOG.debug(
+        "Image Context:\n%s",
+        pformat(ctx.as_dict(exclude_attrs=["image_buffer", "orig_exif"]), indent=2),
+    )
 
     if not cfg.no_op:
         if not ctx.image_buffer:

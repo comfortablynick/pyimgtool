@@ -123,7 +123,7 @@ def parse_args(args: list):
         help="watermark scale in percent of image size (default = 10)",
         dest="watermark_scale",
         metavar="SCALE",
-        default=0.1,
+        default=0.2,
         type=float,
     )
     text_group = parser.add_argument_group("Text options")
@@ -157,10 +157,10 @@ def parse_args(args: list):
     )
     text_group.add_argument(
         "-ts",
-        help="size of text in points",
-        dest="text_size",
-        metavar="SIZE",
-        default=16,
+        help="scale of text relative to image width",
+        dest="text_scale",
+        metavar="SCALE",
+        default=0.20,
         type=float,
     )
 
