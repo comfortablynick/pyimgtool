@@ -2,6 +2,7 @@
 
 import argparse
 import logging
+import textwrap
 from pathlib import Path
 
 from pyimg.data_structures import Position
@@ -12,12 +13,21 @@ LOG = logging.getLogger(__name__)
 def parse_args(args: list):
     """Parse command line arguments."""
     # flags
-    desc = (
-        "A command-line utility which uses the Pillow module to manipulate "
-        "images for web vewing. Images can be resampled, resized, and "
-        "compressed at custom quality levels. Watermarking can also be added."
+    desc = textwrap.dedent(
+        """\
+        A command-line utility which uses the Pillow module to
+        manipulate images for web vewing.
+
+        Images can be resampled, resized, and compressed at custom
+        quality levels. Watermarking can also be added.
+        """
     )
-    parser = argparse.ArgumentParser(prog="pyimg", description=desc, add_help=False)
+    parser = argparse.ArgumentParser(
+        prog="pyimg",
+        description=desc,
+        add_help=False,
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
 
     # Positionals
     parser.add_argument("input", help="image file to process", metavar="INPUT")
@@ -131,6 +141,13 @@ def parse_args(args: list):
         "-t", help="text to display on image", dest="text", metavar="TEXT", type=str
     )
     text_group.add_argument(
+        "-tc",
+        help="display copyright message after © and date taken",
+        dest="text_copyright",
+        metavar="MESSAGE",
+        type=str,
+    )
+    text_group.add_argument(
         "-tr",
         help="angle of text rotation",
         dest="text_rotation",
@@ -190,5 +207,8 @@ def parse_args(args: list):
 
     if not 0 <= parsed.watermark_scale <= 1:
         parser.error("Value out of bounds: -ws must be between 0 and 1")
+
+    if parsed.text is not None and parsed.text_copyright is not None:
+        parser.error("Can use either -t or -tc, not both")
 
     return parsed
