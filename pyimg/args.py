@@ -54,6 +54,12 @@ def parse_args(args: list):
         dest="no_op",
         action="store_true",
     )
+    parser.add_argument(
+        "-qu",
+        help="quiet debug log output to console (opposite of -v)",
+        action="store_true",
+        dest="quiet",
+    )
 
     # Image group
     image_group = parser.add_argument_group("General image options")
@@ -182,6 +188,9 @@ def parse_args(args: list):
     parsed = parser.parse_args(args)
 
     # do basic validation
+    if parsed.quiet > 0:
+        parsed.verbosity = 0
+
     if not 0 <= parsed.jpg_quality <= 100:
         parser.error(f"Quality (-q) must be within 0-100; found: {parsed.jpg_quality}")
 
