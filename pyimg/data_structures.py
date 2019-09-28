@@ -62,6 +62,7 @@ class Config:
     watermark_position: Optional[Position] = None
     watermark_scale: float = 0
     text: Optional[str] = None
+    text_copyright: Optional[str] = None
     text_rotation: int = 0
     text_opacity: float = 0
     text_position: Optional[Position] = None
@@ -87,6 +88,7 @@ class Config:
         cfg.watermark_position = args.watermark_position
         cfg.watermark_scale = args.watermark_scale
         cfg.text = args.text
+        cfg.text_copyright = args.text_copyright
         cfg.text_rotation = args.text_rotation
         cfg.text_opacity = args.text_opacity
         cfg.text_position = args.text_position

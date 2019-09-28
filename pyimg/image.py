@@ -70,7 +70,7 @@ def process_image(cfg: Config) -> Context:
 
     if cfg.watermark_image is not None:
         im = watermark.with_image(im, cfg, ctx)
-    if cfg.text is not None:
+    if cfg.text is not None or cfg.text_copyright is not None:
         im = watermark.with_text(im, cfg, ctx)
 
     # Resize/resample

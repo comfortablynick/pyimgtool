@@ -3,6 +3,7 @@
 import logging
 import os
 from datetime import datetime
+from string import Template
 
 from PIL import Image, ImageDraw, ImageFont
 
@@ -66,11 +67,11 @@ def with_text(im: Image, cfg: Config, ctx: Context) -> Image:
     - `ctx` Context object
 
     """
-    photo_dt = datetime.now()
-    if cfg.text is None:
-        LOG.error("Missing text in cfg")
+    if cfg.text is None and cfg.text_copyright is None:
+        LOG.error("Missing text or copyright text in cfg")
         return im
-    elif cfg.text == "copyright":
+    if cfg.text_copyright is not None:
+        photo_dt = datetime.now()
         if ctx.orig_exif is not None:
             try:
                 photo_dt = datetime.strptime(
@@ -80,8 +81,9 @@ def with_text(im: Image, cfg: Config, ctx: Context) -> Image:
             except KeyError:
                 pass
         copyright_year = photo_dt.strftime("%Y")
-        cfg.text = f"© {copyright_year} Nick Murphy | murphpix.com"
-    LOG.info("Photo date from exif: %s", photo_dt)
+        cfg.text = f"© {copyright_year} {cfg.text_copyright}"
+        LOG.info("Using copyright text: %s", cfg.text)
+        LOG.info("Photo date from exif: %s", photo_dt)
     layer = Image.new("RGBA", (im.width, im.height), (255, 255, 255, 0))
 
     font_size = 1  # starting size
@@ -99,8 +101,8 @@ def with_text(im: Image, cfg: Config, ctx: Context) -> Image:
 
     LOG.debug("Final text dims: %s; Font size: %d", font.getsize(cfg.text), font_size)
     d = ImageDraw.Draw(layer)
-    d.text(
-        (10, 10), cfg.text, font=font, fill=(255, 255, 255, 128)
-    )  # last num is alpha
+    opacity = int(round((cfg.text_opacity * 255)))
+    LOG.info("Text opacity: %d/255", opacity)
+    d.text((10, 10), cfg.text, font=font, fill=(255, 255, 255, opacity))
     out = Image.alpha_composite(im.convert("RGBA"), layer)
     return out.convert("RGB")
