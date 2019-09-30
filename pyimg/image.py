@@ -14,12 +14,17 @@ from pyimg.utils import humanize_bytes
 LOG = logging.getLogger(__name__)
 
 
-def calculate_new_size(cfg: Config, ctx: Context):
+def calculate_new_size(cfg: Config, ctx: Context) -> None:
     """Update Config with correct width/height.
 
     Percent scale (`-p`) takes precedence over width (`-mw`) and
     height (`-mh`). Func does nothing if both height and width
     are supplied at the command line.
+
+    Parameters
+    ----------
+    - `cfg` Config object
+    - `ctx` Context object
 
     """
     if cfg.pct_scale:
