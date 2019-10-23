@@ -1,4 +1,4 @@
-"""Custom exceptions for pyimg."""
+"""Custom exceptions for pyimgtool."""
 
 
 class ImageSizeError(Exception):

@@ -1,7 +1,7 @@
 """Helper functions."""
 from typing import List
 
-from pyimg.data_structures import Config, Context
+from pyimgtool.data_structures import Config, Context
 
 
 def humanize_bytes(num, suffix="B", si_prefix=False, round_digits=2) -> str:

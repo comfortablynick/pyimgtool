@@ -1,7 +1,7 @@
 {
     "_meta": {
         "hash": {
-            "sha256": "a77f7b5a36b78ff0428fd056218f80a892dabcf48d4b7823b8e04a340b79d085"
+            "sha256": "a7dfeb3c9ab27b8f13137eda1ecdb2badb18202621e22de65dc2a22b13c7c364"
         },
         "pipfile-spec": 6,
         "requires": {
@@ -68,7 +68,7 @@
             "index": "pypi",
             "version": "==6.2.1"
         },
-        "pyimg": {
+        "pyimgtool": {
             "editable": true,
             "path": "."
         }

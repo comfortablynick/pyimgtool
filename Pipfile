@@ -14,7 +14,7 @@ black = "*"
 [packages]
 pillow = "*"
 piexif = "*"
-pyimg = {editable = true,path = "."}
+pyimgtool = {editable = true,path = "."}
 attrs = "*"
 
 [requires]

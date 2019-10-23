@@ -5,10 +5,10 @@ import sys
 from pprint import pformat
 from time import perf_counter
 
-from pyimg.args import parse_args
-from pyimg.data_structures import Config
-from pyimg.image import process_image
-from pyimg.utils import get_summary_report
+from pyimgtool.args import parse_args
+from pyimgtool.data_structures import Config
+from pyimgtool.image import process_image
+from pyimgtool.utils import get_summary_report
 
 logging.basicConfig(level=logging.WARNING)
 LOG = logging.getLogger(__name__)

@@ -6,8 +6,8 @@ from datetime import datetime
 
 from PIL import Image, ImageDraw, ImageFont
 
-from pyimg import resize
-from pyimg.data_structures import Config, Context, ImageSize
+from pyimgtool import resize
+from pyimgtool.data_structures import Config, Context, ImageSize
 
 LOG = logging.getLogger(__name__)
 

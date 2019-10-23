@@ -11,7 +11,7 @@ from typing import Tuple
 
 from PIL import Image
 
-from pyimg.exceptions import ImageSizeError
+from pyimgtool.exceptions import ImageSizeError
 
 LOG = logging.getLogger(__name__)
 

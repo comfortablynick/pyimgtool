@@ -5,7 +5,7 @@ import logging
 import textwrap
 from pathlib import Path
 
-from pyimg.data_structures import Position
+from pyimgtool.data_structures import Position
 
 LOG = logging.getLogger(__name__)
 
@@ -23,7 +23,7 @@ def parse_args(args: list):
         """
     )
     parser = argparse.ArgumentParser(
-        prog="pyimg",
+        prog="pyimgtool",
         description=desc,
         add_help=False,
         formatter_class=argparse.RawDescriptionHelpFormatter,

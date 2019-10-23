@@ -7,9 +7,9 @@ from io import BytesIO
 import piexif
 from PIL import Image
 
-from pyimg import resize, watermark
-from pyimg.data_structures import Config, Context
-from pyimg.utils import humanize_bytes
+from pyimgtool import resize, watermark
+from pyimgtool.data_structures import Config, Context
+from pyimgtool.utils import humanize_bytes
 
 LOG = logging.getLogger(__name__)
 
