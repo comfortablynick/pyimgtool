@@ -1,11 +1,20 @@
 """Define application dependencies and entry points."""
-from setuptools import setup
+import setuptools
 
-setup(
-    name="pyimg",
+with open("README.md", "r") as fh:
+    long_description = fh.read
+
+setuptools.setup(
+    name="pyimgtool",
     version="0.0.1",
-    packages=["pyimg"],
+    author="Nicholas Murphy",
+    author_email="comfortablynick@gmail.com",
+    description="Tool to help prep images for web sharing",
+    long_description=long_description,
+    long_description_content_type="text/markdown",
+    url="https://github.com/comfortablynick/pyimgtool.git",
+    packages=setuptools.find_packages(),
     install_requires=["pillow", "piexif"],
-    entry_points={"console_scripts": ["pyimg = pyimg.main:main"]},
+    entry_points={"console_scripts": ["pyimgtool = pyimgtool.main:main"]},
+    python_requires=">=3.6",
 )
-
