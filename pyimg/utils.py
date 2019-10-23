@@ -51,10 +51,13 @@ def get_summary_report(cfg: Config, ctx: Context) -> List[str]:
     report.append(
         [
             "Size Reduction:",
-            f"{humanize_bytes(size_reduction_bytes)} ({(size_reduction_bytes/ctx.orig_file_size) * 100:2.1f}%)",
+            f"{humanize_bytes(size_reduction_bytes)} "
+            f"({(size_reduction_bytes/ctx.orig_file_size) * 100:2.1f}%)",
         ]
     )
-    report.append(["Elapsed Time:", f"{(ctx.time_end - ctx.time_start)*1000:.1f} ms"])
+    report.append(
+        ["Processing Time:", f"{(ctx.time_end - ctx.time_start)*1000:.1f} ms"]
+    )
     for c in report:
         for n in range(4):
             try:

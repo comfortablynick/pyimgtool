@@ -3,7 +3,6 @@
 import logging
 import os
 from datetime import datetime
-from string import Template
 
 from PIL import Image, ImageDraw, ImageFont
 
