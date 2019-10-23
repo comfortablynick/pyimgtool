@@ -1,6 +1,6 @@
 # pyimgtool
 
-Image compression/watermarking using pillow. Useful for photographers to prep files for web sharing.  
+Image compression/watermarking using pillow. Useful for photographers to prep files for web sharing.
 
 ## Features
 
@@ -8,6 +8,10 @@ Image compression/watermarking using pillow. Useful for photographers to prep fi
 - Image watermarking
 - Text watermarking
 - JPEG compression
+
+## Install
+
+Simply run `pip install pyimgtool`  
 
 ## Todo
 
