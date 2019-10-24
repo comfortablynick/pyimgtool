@@ -90,9 +90,7 @@ def with_text(im: Image, cfg: Config, ctx: Context) -> Image:
 
     try:
         cwd = PurePath(os.path.dirname(__file__))
-        font_path = str(
-            PurePath.joinpath(cwd.parent, "fonts", "SourceSansPro-Regular.ttf")
-        )
+        font_path = str(PurePath.joinpath(cwd, "fonts", "SourceSansPro-Regular.ttf"))
         font = ImageFont.truetype(font=font_path, size=font_size)
     except OSError:
         LOG.error("Could not find font '%s', aborting text watermark", font_path)

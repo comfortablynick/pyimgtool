@@ -28,3 +28,7 @@ runwi +args='':
 # show prog help
 help:
     {{bin_name}} -h
+
+# create dist and upload to pypi
+pack:
+    rm -rf dist && python setup.py sdist bdist_wheel && twine upload dist/*
