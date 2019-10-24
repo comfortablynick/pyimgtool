@@ -6,6 +6,7 @@ import textwrap
 from pathlib import Path
 
 from pyimgtool.data_structures import Position
+from pyimgtool.version import __version__
 
 LOG = logging.getLogger(__name__)
 
@@ -49,7 +50,7 @@ def parse_args(args: list):
     )
     parser.add_argument("-h", action="help", help="show this help message and exit")
     parser.add_argument("--help", action="help", help=argparse.SUPPRESS)
-    parser.add_argument("-V", action="version", version="%(prog)s 0.0.1")
+    parser.add_argument("-V", action="version", version=f"%(prog)s {__version__}")
     parser.add_argument(
         "-s",
         nargs=1,
