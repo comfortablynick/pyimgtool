@@ -19,7 +19,7 @@ runtest:
 
 # test text watermark
 runw +args='':
-    {{bin_name}} {{test_file_in}} {{test_file_out}} -v -mw 2000 -mh 2000 -tc "Nick Murphy" {{args}}
+    {{bin_name}} {{test_file_in}} {{test_file_out}} -v -mw 2000 -mh 2000 -tc "Nick Murphy | murphpix.com" {{args}}
 
 # test watermark image
 runwi +args='':
