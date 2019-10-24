@@ -17,6 +17,10 @@ runargs +args='':
 runtest:
     {{bin_name}} {{test_file_in}} {{test_file_out}} -vv -mw 2000
 
+# test text watermark
+runw +args='':
+    {{bin_name}} {{test_file_in}} {{test_file_out}} -v -mw 2000 -mh 2000 -tc "Nick Murphy" {{args}}
+
 # test watermark image
 runwi +args='':
     {{bin_name}} {{test_file_in}} {{test_file_out}} -v -mw 2000 -mh 2000 -wi {{test_watermark_file}} {{args}}

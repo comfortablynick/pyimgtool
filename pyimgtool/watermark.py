@@ -2,6 +2,7 @@
 
 import logging
 import os
+from pathlib import PurePath
 from datetime import datetime
 
 from PIL import Image, ImageDraw, ImageFont
@@ -86,9 +87,18 @@ def with_text(im: Image, cfg: Config, ctx: Context) -> Image:
     layer = Image.new("RGBA", (im.width, im.height), (255, 255, 255, 0))
 
     font_size = 1  # starting size
-    font_path = "DejaVuSans.ttf"
-    font = ImageFont.truetype(font=font_path, size=font_size)
 
+    try:
+        cwd = PurePath(os.path.dirname(__file__))
+        font_path = str(
+            PurePath.joinpath(cwd.parent, "fonts", "SourceSansPro-Regular.ttf")
+        )
+        font = ImageFont.truetype(font=font_path, size=font_size)
+    except OSError:
+        LOG.error("Could not find font '%s', aborting text watermark", font_path)
+        return im
+
+    LOG.debug("Found font '%s'", font_path)
     while font.getsize(cfg.text)[0] < cfg.text_scale * im.width:
         # iterate until text size is >= text_scale
         font_size += 1
