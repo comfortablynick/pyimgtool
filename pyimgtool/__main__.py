@@ -2,8 +2,10 @@
 
 import logging
 import sys
+from sty import fg, ef, rs
 from pprint import pformat
 from time import perf_counter
+from pathlib import Path
 
 from pyimgtool.args import parse_args
 from pyimgtool.data_structures import Config
@@ -41,10 +43,27 @@ def main():
             LOG.critical("Image buffer cannot be None")
             raise ValueError("Image buffer is None")
         LOG.info("Saving buffer to %s", cfg.output_file)
-        with open(cfg.output_file, "wb") as f:
+
+        # Create output dir if it doesn't exist
+        out_path = Path(cfg.output_file)
+        try:
+            out_path.mkdir(exist_ok=True)
+        except FileExistsError:
+            # output file exists
+            if not cfg.force:
+                print(
+                    fg.red
+                    + ef.bold
+                    + f"Error: file '{out_path}' exists; use -f option to force overwrite."
+                    + rs.all,
+                    file=sys.stderr,
+                )
+                return
+
+        with out_path.open("wb") as f:
             f.write(ctx.image_buffer)
     else:
-        print("***Displaying Results Only***")
+        print(fg.li_magenta + "***Displaying Results Only***" + fg.rs)
 
     ctx.time_end = perf_counter()
     print(*get_summary_report(cfg, ctx), sep="\n")

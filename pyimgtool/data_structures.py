@@ -51,6 +51,7 @@ class Config:
     output_file: Optional[Path] = None
     verbosity: int = 0
     suffix: Optional[str] = None
+    force: bool = False
     no_op: bool = False
     pct_scale: float = 0
     width: int = 0
@@ -77,6 +78,7 @@ class Config:
         cfg.output_file = args.output
         cfg.verbosity = args.verbosity
         cfg.suffix = args.suffix
+        cfg.force = args.force
         cfg.no_op = args.no_op
         cfg.pct_scale = args.pct_scale
         cfg.width = args.width

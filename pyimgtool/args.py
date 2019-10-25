@@ -42,6 +42,9 @@ def parse_args(args: list):
         default="../conf.ini",
     )
     parser.add_argument(
+        "-f", help="force overwrite of existing file", dest="force", action="store_true"
+    )
+    parser.add_argument(
         "-v",
         help="increase logging output to console",
         action="count",

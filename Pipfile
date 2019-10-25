@@ -16,6 +16,7 @@ pillow = "*"
 piexif = "*"
 pyimgtool = {editable = true,path = "."}
 attrs = "*"
+sty = "*"
 
 [requires]
 python_version = "3.6.1"

@@ -1,7 +1,7 @@
 {
     "_meta": {
         "hash": {
-            "sha256": "a7dfeb3c9ab27b8f13137eda1ecdb2badb18202621e22de65dc2a22b13c7c364"
+            "sha256": "f3eb563edb37abd62d430e174b836656723063a572f3a544aa624850719594e1"
         },
         "pipfile-spec": 6,
         "requires": {
@@ -71,6 +71,13 @@
         "pyimgtool": {
             "editable": true,
             "path": "."
+        },
+        "sty": {
+            "hashes": [
+                "sha256:46563babbe6e1944de9d013e9c1ffbde02c90ae4858b2fa47648f7b2f2b198ae"
+            ],
+            "index": "pypi",
+            "version": "==1.0.0b12"
         }
     },
     "develop": {
