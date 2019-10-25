@@ -42,7 +42,7 @@ setup(
     url="https://github.com/comfortablynick/pyimgtool",
     packages=find_packages(),
     include_package_data=True,
-    install_requires=["pillow", "piexif", "attrs"],
+    install_requires=["pillow", "piexif", "attrs", "sty"],
     entry_points={"console_scripts": ["pyimgtool = pyimgtool.__main__:main"]},
     python_requires=">=3.6",
     project_urls={
