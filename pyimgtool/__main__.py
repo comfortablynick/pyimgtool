@@ -46,9 +46,7 @@ def main():
 
         # Create output dir if it doesn't exist
         out_path = Path(cfg.output_file)
-        try:
-            out_path.mkdir(exist_ok=True)
-        except FileExistsError:
+        if out_path.exists():
             # output file exists
             if not cfg.force:
                 print(
@@ -59,6 +57,7 @@ def main():
                     file=sys.stderr,
                 )
                 return
+        out_path.parent.mkdir(parents=True, exist_ok=True)
 
         with out_path.open("wb") as f:
             f.write(ctx.image_buffer)

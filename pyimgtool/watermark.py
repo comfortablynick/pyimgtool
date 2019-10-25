@@ -5,7 +5,7 @@ import os
 from pathlib import PurePath
 from datetime import datetime
 
-from PIL import Image, ImageDraw, ImageFont
+from PIL import Image, ImageDraw, ImageFont, ImageStat
 
 from pyimgtool import resize
 from pyimgtool.data_structures import Config, Context, ImageSize
@@ -87,6 +87,8 @@ def with_text(im: Image, cfg: Config, ctx: Context) -> Image:
     layer = Image.new("RGBA", (im.width, im.height), (255, 255, 255, 0))
 
     font_size = 1  # starting size
+    offset_x = 10
+    offset_y = 10
 
     try:
         cwd = PurePath(os.path.dirname(__file__))
@@ -106,10 +108,22 @@ def with_text(im: Image, cfg: Config, ctx: Context) -> Image:
         font_size -= 1
         font = ImageFont.truetype(font=font_path, size=font_size)
 
-    LOG.debug("Final text dims: %s; Font size: %d", font.getsize(cfg.text), font_size)
+    text_width, text_height = font.getsize(cfg.text)
+    stats = ImageStat.Stat(
+        im.crop((offset_x, offset_y, text_width, im.height - text_height)).convert("L")
+    )
+    LOG.debug(
+        "Final text dims: %d x %d px; Font size: %d", text_width, text_height, font_size
+    )
+    LOG.debug("Text region stats: mean=%f, rms=%f", stats.mean[0], stats.rms[0])
     d = ImageDraw.Draw(layer)
     opacity = int(round((cfg.text_opacity * 255)))
     LOG.info("Text opacity: %d/255", opacity)
-    d.text((10, 10), cfg.text, font=font, fill=(255, 255, 255, opacity))
+
+    text_fill = 255, 255, 255, opacity
+    if stats.mean[0] > 60:
+        text_fill = 0, 0, 0, opacity
+
+    d.text((offset_x, offset_y), cfg.text, font=font, fill=text_fill)
     out = Image.alpha_composite(im.convert("RGBA"), layer)
     return out.convert("RGB")
