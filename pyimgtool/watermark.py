@@ -2,14 +2,15 @@
 
 import logging
 import os
-from pathlib import PurePath
 from datetime import datetime
 from math import sqrt
+from pathlib import PurePath
 
+from numpy import np
 from PIL import Image, ImageDraw, ImageFont, ImageStat
 
-from pyimgtool.resize import resize_height
 from pyimgtool.data_structures import Config, Context, ImageSize
+from pyimgtool.resize import resize_height
 
 LOG = logging.getLogger(__name__)
 

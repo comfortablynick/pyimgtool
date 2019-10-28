@@ -10,6 +10,8 @@ mypy = "*"
 jedi = "*"
 rope = "*"
 black = "*"
+python-language-server = "*"
+isort = "*"
 
 [packages]
 pillow = "*"

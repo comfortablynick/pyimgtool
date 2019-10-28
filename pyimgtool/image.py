@@ -5,7 +5,7 @@ import sys
 from io import BytesIO
 
 import piexif
-from PIL import Image, ImageStat, ImageDraw
+from PIL import Image, ImageDraw, ImageStat
 
 from pyimgtool import resize, watermark
 from pyimgtool.data_structures import Config, Context
@@ -71,11 +71,6 @@ def process_image(cfg: Config) -> Context:
 
     calculate_new_size(cfg, ctx)
 
-    if cfg.watermark_image is not None:
-        im = watermark.with_image(im, cfg, ctx)
-    if cfg.text is not None or cfg.text_copyright is not None:
-        im = watermark.with_text(im, cfg, ctx)
-
     # Resize/resample
     if cfg.height != ctx.orig_size.height or cfg.width != ctx.orig_size.width:
         im = resize.resize_thumbnail(
@@ -84,6 +79,11 @@ def process_image(cfg: Config) -> Context:
             #  bg_size=(cfg.width + 50, cfg.height + 50),
             resample=Image.ANTIALIAS,
         )
+
+    if cfg.watermark_image is not None:
+        im = watermark.with_image(im, cfg, ctx)
+    if cfg.text is not None or cfg.text_copyright is not None:
+        im = watermark.with_text(im, cfg, ctx)
 
     try:
         ctx.new_dpi = im.info["dpi"]
