@@ -5,7 +5,7 @@ import sys
 from io import BytesIO
 
 import piexif
-from PIL import Image
+from PIL import Image, ImageStat, ImageDraw
 
 from pyimgtool import resize, watermark
 from pyimgtool.data_structures import Config, Context

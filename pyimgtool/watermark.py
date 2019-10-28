@@ -4,13 +4,35 @@ import logging
 import os
 from pathlib import PurePath
 from datetime import datetime
+from math import sqrt
 
 from PIL import Image, ImageDraw, ImageFont, ImageStat
 
-from pyimgtool import resize
+from pyimgtool.resize import resize_height
 from pyimgtool.data_structures import Config, Context, ImageSize
 
 LOG = logging.getLogger(__name__)
+
+
+def get_luminance(im: Image, region: list) -> float:
+    """Get the average perceptive luminance of the region.
+
+    Parameters
+    ----------
+    - `image` The image to get the luminance of
+    - `region` The region to get the luminance of,
+               in the form [(x0, y0), (x1, y1)] or [x0, y0, x1, y1]
+
+    """
+    mask = Image.new("L", im.size, 0)
+    drawing_layer = ImageDraw.Draw(mask)
+    drawing_layer.rectangle(region, fill=255)
+    stats = ImageStat.Stat(im, mask=mask)
+    return sqrt(
+        0.299 * (stats.mean[0] ** 2)
+        + 0.587 * (stats.mean[1] ** 2)
+        + 0.114 * (stats.mean[2] ** 2)
+    )
 
 
 def with_image(im: Image, cfg: Config, ctx: Context) -> Image:
@@ -38,7 +60,7 @@ def with_image(im: Image, cfg: Config, ctx: Context) -> Image:
             watermark_ratio,
             cfg.watermark_scale,
         )
-        watermark_image = resize.resize_height(
+        watermark_image = resize_height(
             watermark_image,
             (int(im.width * cfg.watermark_scale), int(im.height * cfg.watermark_scale)),
         )
@@ -109,19 +131,20 @@ def with_text(im: Image, cfg: Config, ctx: Context) -> Image:
         font = ImageFont.truetype(font=font_path, size=font_size)
 
     text_width, text_height = font.getsize(cfg.text)
-    stats = ImageStat.Stat(
-        im.crop((offset_x, offset_y, text_width, im.height - text_height)).convert("L")
-    )
     LOG.debug(
         "Final text dims: %d x %d px; Font size: %d", text_width, text_height, font_size
     )
-    LOG.debug("Text region stats: mean=%f, rms=%f", stats.mean[0], stats.rms[0])
+    # TODO: calculate watermark dims accurately
+    luminance = get_luminance(
+        im, [offset_x, offset_y, text_width, im.height - text_height]
+    )
+    LOG.debug("Perceptive luminance: %f", luminance)
     d = ImageDraw.Draw(layer)
     opacity = int(round((cfg.text_opacity * 255)))
     LOG.info("Text opacity: %d/255", opacity)
 
     text_fill = 255, 255, 255, opacity
-    if stats.mean[0] > 60:
+    if luminance / 256 >= 0.5:
         text_fill = 0, 0, 0, opacity
 
     d.text((offset_x, offset_y), cfg.text, font=font, fill=text_fill)
