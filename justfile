@@ -2,6 +2,7 @@ bin_name := 'pyimgtool'
 test_file_in := 'test/sunset.jpg'
 test_file_out := 'test/sunset_edited.jpg'
 test_watermark_file := 'test/logo.png'
+test_full_watermark_file := 'test/logo_full.png'
 
 alias r := runargs
 alias run := runtest
@@ -21,9 +22,13 @@ runtest:
 runw +args='':
     {{bin_name}} {{test_file_in}} {{test_file_out}} -vf -mw 2000 -mh 2000 -tc "Nick Murphy | murphpix.com" {{args}}
 
-# test watermark image
+# test logo watermark image
 runwi +args='':
     {{bin_name}} {{test_file_in}} {{test_file_out}} -vf -mw 2000 -mh 2000 -wi {{test_watermark_file}} {{args}}
+
+# test full logo watermark
+runwif +args='':
+    {{bin_name}} {{test_file_in}} {{test_file_out}} -vf -mw 2000 -mh 2000 -wi {{test_full_watermark_file}} {{args}}
 
 # show prog help
 help:

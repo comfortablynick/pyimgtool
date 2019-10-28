@@ -6,7 +6,6 @@ from datetime import datetime
 from math import sqrt
 from pathlib import PurePath
 
-from numpy import np
 from PIL import Image, ImageDraw, ImageFont, ImageStat
 
 from pyimgtool.data_structures import Config, Context, ImageSize
