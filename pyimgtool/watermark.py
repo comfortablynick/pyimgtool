@@ -3,19 +3,18 @@
 import logging
 import os
 from datetime import datetime
-from math import sqrt
 from pathlib import PurePath
 
 from PIL import Image, ImageDraw, ImageFont, ImageStat
 
-from pyimgtool.data_structures import Config, Context, ImageSize
+from pyimgtool.data_structures import Config, Context, ImageSize, Position
 from pyimgtool.resize import resize_height
 
 LOG = logging.getLogger(__name__)
 
 
-def get_luminance(im: Image, region: list) -> float:
-    """Get the average perceptive luminance of the region.
+def get_region_stats(im: Image, region: list) -> ImageStat:
+    """Get ImageStat object for region of PIL image.
 
     Parameters
     ----------
@@ -24,15 +23,102 @@ def get_luminance(im: Image, region: list) -> float:
                in the form [(x0, y0), (x1, y1)] or [x0, y0, x1, y1]
 
     """
-    mask = Image.new("L", im.size, 0)
+    image_l = im.convert("L")
+    mask = Image.new("L", image_l.size, 0)
     drawing_layer = ImageDraw.Draw(mask)
     drawing_layer.rectangle(region, fill=255)
-    stats = ImageStat.Stat(im, mask=mask)
-    return sqrt(
-        0.299 * (stats.mean[0] ** 2)
-        + 0.587 * (stats.mean[1] ** 2)
-        + 0.114 * (stats.mean[2] ** 2)
+    return ImageStat.Stat(image_l, mask=mask)
+
+
+def find_best_location(im: Image, size: ImageSize, padding: float) -> Position:
+    """Find the best location for the watermark.
+
+    The best location is the one with least luminance variance.
+
+    Parameters
+    ----------
+    - `im` PIL Image
+    - `size` Size of watermark image
+    - `padding` Proportion of padding to add around watermark
+
+    """
+    bl_padding = tuple(
+        map(
+            lambda x: int(x),
+            [padding * im.size[0], im.size[1] - size.height - padding * im.size[1]],
+        )
     )
+    br_padding = tuple(
+        map(
+            lambda x: int(x),
+            [
+                im.size[0] - size.width - padding * im.size[0],
+                im.size[1] - size.height - padding * im.size[1],
+            ],
+        )
+    )
+    tl_padding = tuple(
+        map(lambda x: int(x), [padding * im.size[0], padding * im.size[0]])
+    )
+    tr_padding = tuple(
+        map(
+            lambda x: int(x),
+            [im.size[0] - size.width - padding * im.size[0], padding * im.size[1]],
+        )
+    )
+    bc_padding = tuple(
+        map(
+            lambda x: int(x),
+            [
+                im.size[0] / 2 - size.width / 2,
+                im.size[1] - size.height - padding * im.size[1],
+            ],
+        )
+    )
+    paddings = [bl_padding, br_padding, tl_padding, tr_padding, bc_padding]
+    vars = list(
+        map(
+            lambda padding: get_region_stats(
+                im, [padding, (padding[0] + size.width, padding[1] + size.height)]
+            ).stddev[0],
+            paddings,
+        )
+    )
+    minimum = min(vars)
+    index = vars.index(minimum)
+    locations = [
+        Position.BOTTOM_LEFT,
+        Position.BOTTOM_RIGHT,
+        Position.TOP_LEFT,
+        Position.TOP_RIGHT,
+        Position.BOTTOM_CENTER,
+    ]
+    return locations[index]
+
+
+def add_copyright_date(im: Image, cfg: Config, ctx: Context) -> None:
+    """Extract date taken from photo to add to copyright text.
+
+    Parameters
+    ----------
+    - `im` PIL Image
+    - `cfg` Config object
+    - `ctx` Context object
+
+    """
+    photo_dt = datetime.now()
+    if ctx.orig_exif is not None:
+        try:
+            photo_dt = datetime.strptime(
+                ctx.orig_exif["Exif"]["DateTimeOriginal"].decode("utf-8"),
+                "%Y:%m:%d %H:%M:%S",
+            )
+        except KeyError:
+            pass
+    copyright_year = photo_dt.strftime("%Y")
+    cfg.text = f"© {copyright_year} {cfg.text_copyright}"
+    LOG.info("Using copyright text: %s", cfg.text)
+    LOG.info("Photo date from exif: %s", photo_dt)
 
 
 def with_image(im: Image, cfg: Config, ctx: Context) -> Image:
@@ -65,12 +151,16 @@ def with_image(im: Image, cfg: Config, ctx: Context) -> Image:
             (int(im.width * cfg.watermark_scale), int(im.height * cfg.watermark_scale)),
         )
         LOG.debug("New watermark dims: %s", watermark_image.size)
+    offset_x = cfg.watermark_padding
+    offset_y = cfg.watermark_padding
     ctx.watermark_size = ImageSize(watermark_image.width, watermark_image.height)
     mask = watermark_image.split()[3].point(lambda i: i * cfg.watermark_opacity)
     pos = (
-        (im.width - watermark_image.width - 25),
-        (im.height - watermark_image.height - 25),
+        (im.width - watermark_image.width - offset_x),
+        (im.height - watermark_image.height - offset_y),
     )
+    loc = find_best_location(im, ctx.watermark_size, 0.05)
+    LOG.debug("Best detected watermark loc: %s", loc)
     im.paste(watermark_image, pos, mask)
     return im
 
@@ -93,24 +183,13 @@ def with_text(im: Image, cfg: Config, ctx: Context) -> Image:
         LOG.error("Missing text or copyright text in cfg")
         return im
     if cfg.text_copyright is not None:
-        photo_dt = datetime.now()
-        if ctx.orig_exif is not None:
-            try:
-                photo_dt = datetime.strptime(
-                    ctx.orig_exif["Exif"]["DateTimeOriginal"].decode("utf-8"),
-                    "%Y:%m:%d %H:%M:%S",
-                )
-            except KeyError:
-                pass
-        copyright_year = photo_dt.strftime("%Y")
-        cfg.text = f"© {copyright_year} {cfg.text_copyright}"
-        LOG.info("Using copyright text: %s", cfg.text)
-        LOG.info("Photo date from exif: %s", photo_dt)
+        # Add date photo taken to copyright text
+        add_copyright_date(im, cfg, ctx)
     layer = Image.new("RGBA", (im.width, im.height), (255, 255, 255, 0))
 
     font_size = 1  # starting size
-    offset_x = 10
-    offset_y = 10
+    offset_x = cfg.text_padding
+    offset_y = cfg.text_padding
 
     try:
         cwd = PurePath(os.path.dirname(__file__))
@@ -135,16 +214,17 @@ def with_text(im: Image, cfg: Config, ctx: Context) -> Image:
         "Final text dims: %d x %d px; Font size: %d", text_width, text_height, font_size
     )
     # TODO: calculate watermark dims accurately
-    luminance = get_luminance(
+    stats = get_region_stats(
         im, [offset_x, offset_y, text_width, im.height - text_height]
     )
-    LOG.debug("Perceptive luminance: %f", luminance)
+    LOG.debug("Region luminance: %f", stats.mean[0])
+    LOG.debug("Region luminance stddev: %f", stats.stddev[0])
     d = ImageDraw.Draw(layer)
     opacity = int(round((cfg.text_opacity * 255)))
     LOG.info("Text opacity: %d/255", opacity)
 
     text_fill = 255, 255, 255, opacity
-    if luminance / 256 >= 0.5:
+    if stats.mean[0] / 256 >= 0.5:
         text_fill = 0, 0, 0, opacity
 
     d.text((offset_x, offset_y), cfg.text, font=font, fill=text_fill)

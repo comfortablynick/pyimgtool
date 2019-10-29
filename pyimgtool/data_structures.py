@@ -18,6 +18,7 @@ class Position(Enum):
     TOP_RIGHT = "top-right"
     BOTTOM_RIGHT = "bottom-right"
     BOTTOM_LEFT = "bottom-left"
+    BOTTOM_CENTER = "bottom-center"
 
     def __str__(self):
         """Return enum value in lowercase."""
@@ -62,12 +63,14 @@ class Config:
     watermark_opacity: float = 0
     watermark_position: Optional[Position] = None
     watermark_scale: float = 0
+    watermark_padding: int = 10
     text: Optional[str] = None
     text_copyright: Optional[str] = None
     text_rotation: int = 0
     text_opacity: float = 0
     text_position: Optional[Position] = None
     text_scale: int = 0
+    text_padding: int = 0
     jpg_quality: int = 0
 
     @staticmethod
