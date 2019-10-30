@@ -2,6 +2,7 @@
 
 import logging
 import sys
+import piexif
 from sty import fg, ef, rs
 from pprint import pformat
 from time import perf_counter

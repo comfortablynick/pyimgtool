@@ -5,7 +5,7 @@ import sys
 from io import BytesIO
 
 import piexif
-from PIL import Image, ImageDraw, ImageStat
+from PIL import Image
 
 from pyimgtool import resize, watermark
 from pyimgtool.data_structures import Config, Context
@@ -24,7 +24,7 @@ def calculate_new_size(cfg: Config, ctx: Context) -> None:
     Parameters
     ----------
     - `cfg` Config object
-    - `ctx` Context object
+    - `ctx` Context objec
 
     """
     if cfg.pct_scale:
@@ -92,7 +92,19 @@ def process_image(cfg: Config) -> Context:
     LOG.info("Image mode: %s", im.mode)
 
     # Save
-    im.save(outbuf, "JPEG", quality=cfg.jpg_quality, dpi=ctx.orig_dpi, progressive=True)
+    use_progressive_jpg = ctx.orig_file_size > 10000
+    if use_progressive_jpg:
+        LOG.debug("Large file; using progressive jpg")
+    exif = piexif.dump(piexif.load(im.info["exif"])) if cfg.keep_exif else b""
+    im.save(
+        outbuf,
+        "JPEG",
+        quality=cfg.jpg_quality,
+        dpi=ctx.orig_dpi,
+        progressive=use_progressive_jpg,
+        optimize=True,
+        exif=exif,
+    )
     ctx.image_buffer = outbuf.getvalue()
 
     # convert back to image to get size
