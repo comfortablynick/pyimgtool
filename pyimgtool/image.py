@@ -59,7 +59,7 @@ def process_image(cfg: Config) -> Context:
     ctx.orig_file_size = inbuf.tell()
     im = Image.open(inbuf)
     try:
-        exif = piexif.load(im.info["exif"], True)
+        exif = piexif.load(cfg.input_file)
         del exif["thumbnail"]
         ctx.orig_exif = exif
     except KeyError:
@@ -95,7 +95,13 @@ def process_image(cfg: Config) -> Context:
     use_progressive_jpg = ctx.orig_file_size > 10000
     if use_progressive_jpg:
         LOG.debug("Large file; using progressive jpg")
-    exif = piexif.dump(piexif.load(im.info["exif"])) if cfg.keep_exif else b""
+
+    # Exif
+    if cfg.keep_exif:
+        exif = piexif.dump(piexif.load(cfg.input_file))
+    else:
+        exif = b""
+
     im.save(
         outbuf,
         "JPEG",

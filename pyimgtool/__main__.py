@@ -2,11 +2,11 @@
 
 import logging
 import sys
-import piexif
-from sty import fg, ef, rs
+from pathlib import Path
 from pprint import pformat
 from time import perf_counter
-from pathlib import Path
+
+from sty import ef, fg, rs
 
 from pyimgtool.args import parse_args
 from pyimgtool.data_structures import Config
@@ -34,9 +34,12 @@ def main():
     LOG.debug("Runtime config:\n%s", pformat(cfg.as_dict(), indent=2))
     ctx = process_image(cfg)
     ctx.time_start = time_start
+    exclude_ctx_attrs = ["image_buffer"]
+    if cfg.verbosity < 3:
+        exclude_ctx_attrs.append("orig_exif")
     LOG.debug(
         "Image Context:\n%s",
-        pformat(ctx.as_dict(exclude_attrs=["image_buffer", "orig_exif"]), indent=2),
+        pformat(ctx.as_dict(exclude_attrs=exclude_ctx_attrs), indent=2),
     )
 
     if not cfg.no_op:
