@@ -19,6 +19,9 @@ piexif = "*"
 pyimgtool = {editable = true,path = "."}
 attrs = "*"
 sty = "*"
+plotille = "*"
+opencv-python = "*"
+better-exceptions = "*"
 
 [requires]
 python_version = "3.6.1"

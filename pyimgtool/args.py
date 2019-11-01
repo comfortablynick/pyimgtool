@@ -69,7 +69,7 @@ def parse_args(args: list):
         action="store_true",
     )
     parser.add_argument(
-        "-qu",
+        "-Q",
         help="quiet debug log output to console (opposite of -v)",
         action="store_true",
         dest="quiet",
@@ -102,6 +102,12 @@ def parse_args(args: list):
     )
     image_group.add_argument(
         "-ke", help="keep exif data if possible", dest="keep_exif", action="store_true"
+    )
+    image_group.add_argument(
+        "-hi",
+        help="print image histogram to console",
+        dest="show_histogram",
+        action="store_true",
     )
 
     # Watermark group

@@ -58,6 +58,7 @@ class Config:
     width: int = 0
     height: int = 0
     keep_exif: bool = False
+    show_histogram: bool = False
     watermark_image: Optional[Path] = None
     watermark_rotation: int = 0
     watermark_opacity: float = 0
@@ -87,6 +88,7 @@ class Config:
         cfg.width = args.width
         cfg.height = args.height
         cfg.keep_exif = args.keep_exif
+        cfg.show_histogram = args.show_histogram
         cfg.watermark_image = args.watermark_image
         cfg.watermark_rotation = args.watermark_rotation
         cfg.watermark_opacity = args.watermark_opacity

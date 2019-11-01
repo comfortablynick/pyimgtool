@@ -4,7 +4,10 @@ import logging
 import sys
 from io import BytesIO
 
+import cv2
+import numpy as np
 import piexif
+import plotille
 from PIL import Image
 
 from pyimgtool import resize, watermark
@@ -12,6 +15,41 @@ from pyimgtool.data_structures import Config, Context
 from pyimgtool.utils import humanize_bytes
 
 LOG = logging.getLogger(__name__)
+
+
+def generate_histogram(cfg: Config) -> str:
+    """Return string of histogram for image to print in terminal.
+
+    Parameters
+    ----------
+    - `im` PIL Image
+    - `cfg` Config object
+
+    """
+    hist_bins = 256
+    mono = cv2.imread(cfg.input_file)
+    #  hist_data = mono.histogram()
+    hist_data = [
+        x[0]
+        for x in cv2.calcHist(
+            images=[mono],
+            channels=[0],
+            mask=None,
+            histSize=[hist_bins],
+            ranges=[0, 256],
+        )
+    ]
+    #  print(hist_data)
+
+    hist = plotille.histogram(
+        hist_data,
+        height=10,
+        width=50,
+        X_label="Pixel Count",
+        Y_label="Pixel Value",
+        x_min=0,
+    )
+    return str(hist)
 
 
 def calculate_new_size(cfg: Config, ctx: Context) -> None:
@@ -116,6 +154,8 @@ def process_image(cfg: Config) -> Context:
     # convert back to image to get size
     if ctx.image_buffer:
         img_out = Image.open(BytesIO(ctx.image_buffer))
+        if cfg.show_histogram:
+            print(generate_histogram(cfg))
         ctx.new_size.width, ctx.new_size.height = img_out.size
         ctx.new_file_size = sys.getsizeof(ctx.image_buffer)
     LOG.info("Output size: %s", humanize_bytes(ctx.new_file_size))
