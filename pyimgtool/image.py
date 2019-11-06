@@ -1,6 +1,7 @@
 """Image operations."""
 
 import logging
+import os
 import sys
 from io import BytesIO
 from typing import Optional
@@ -18,36 +19,48 @@ from pyimgtool.utils import humanize_bytes
 LOG = logging.getLogger(__name__)
 
 
-def generate_histogram(im: Image, cfg: Config) -> str:
+def generate_rgb_histogram(im: Image, show_axes: bool = False) -> str:
     """Return string of histogram for image to print in terminal.
 
     Parameters
     ----------
-    - `cfg` Config object
+    - `im` PIL Image object
 
     Returns
     -------
-    - Str of histogram content
+    - Str of histogram content for rgb image
 
     """
+    hist_width = 50
+    hist_height = 10
     hist_bins = 256
-    img = np.asarray(im.convert("L"))
-    # resize to 10% of orig to make histogram faster
-    new_size = calculate_new_size(ImageSize(*img.shape[:2]), 10.0, None)
-    LOG.debug("Img resized to %s for histogram", new_size)
-    flat = cv2.resize(np.asarray(img), dsize=(new_size.width, new_size.height))
-    hist_data, bins = np.histogram(flat, bins=range(hist_bins + 1), range=[0, 256])
-    hist = plotille.plot(
-        bins[:hist_bins],
-        hist_data,
-        width=50,
-        height=10,
-        x_min=0,
-        x_max=255,
-        y_min=0,
-        y_max=float(hist_data.max()),
-    )
-    return str(hist)
+
+    # set up graph
+    fig = plotille.Figure()
+    fig.width = hist_width
+    fig.height = hist_height
+    fig.origin = False  # Don't draw 0 lines
+    fig.set_x_limits(min_=0, max_=hist_bins - 1)
+    fig.set_y_limits(min_=0)
+    fig.color_mode = "rgb"
+
+    img = np.asarray(im)
+    img_h, img_w, img_c = img.shape
+    colors = [(255, 0, 0), (0, 255, 0), (0, 0, 255)]
+
+    for i in range(img_c):
+        hist_data, bins = np.histogram(
+            img[..., i], bins=range(hist_bins + 1), range=[0, 256]
+        )
+        fig.plot(bins[:hist_bins], hist_data, lc=colors[i])
+    if not show_axes:
+        graph = (
+            "\n".join(["".join(l.split("|")[1]) for l in fig.show().splitlines()[1:-2]])
+            + "\n"
+        )
+    else:
+        graph = fig.show()
+    return graph
 
 
 def calculate_new_size(
@@ -167,8 +180,7 @@ def process_image(cfg: Config) -> Context:
     if ctx.image_buffer:
         img_out = Image.open(BytesIO(ctx.image_buffer))
         if cfg.show_histogram:
-            # print(generate_histogram(cfg))
-            print(generate_histogram(im, cfg))
+            print(generate_rgb_histogram(im))
         ctx.new_size.width, ctx.new_size.height = img_out.size
         ctx.new_file_size = sys.getsizeof(ctx.image_buffer)
     LOG.info("Output size: %s", humanize_bytes(ctx.new_file_size))
