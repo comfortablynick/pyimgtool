@@ -9,6 +9,7 @@ import sys
 from functools import wraps
 from typing import Tuple
 
+import cv2
 from PIL import Image
 
 from pyimgtool.exceptions import ImageSizeError

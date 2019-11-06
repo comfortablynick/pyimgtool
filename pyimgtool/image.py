@@ -11,7 +11,7 @@ import plotille
 from PIL import Image
 
 from pyimgtool import resize, watermark
-from pyimgtool.data_structures import Config, Context
+from pyimgtool.data_structures import Config, Context, ImageSize
 from pyimgtool.utils import humanize_bytes
 
 LOG = logging.getLogger(__name__)
@@ -22,67 +22,71 @@ def generate_histogram(cfg: Config) -> str:
 
     Parameters
     ----------
-    - `im` PIL Image
     - `cfg` Config object
+
+    Returns
+    -------
+    - Str of histogram content
 
     """
     hist_bins = 256
-    mono = cv2.imread(cfg.input_file)
-    #  hist_data = mono.histogram()
-    hist_data = [
-        x[0]
-        for x in cv2.calcHist(
-            images=[mono],
-            channels=[0],
-            mask=None,
-            histSize=[hist_bins],
-            ranges=[0, 256],
-        )
-    ]
-    #  print(hist_data)
-
-    hist = plotille.histogram(
+    img = Image.open(cfg.input_file).convert("L")
+    # resize to make histogram faster
+    new_size = calculate_new_size(0.0, ImageSize(*img.size), ImageSize(1000, 0))
+    flat = cv2.resize(np.asarray(img), dsize=(new_size.width, new_size.height)).ravel()
+    hist_data, bins = np.histogram(flat, bins=range(hist_bins + 1), range=[0, 256])
+    hist = plotille.plot(
+        bins[:hist_bins],
         hist_data,
-        height=10,
         width=50,
-        X_label="Pixel Count",
-        Y_label="Pixel Value",
+        height=10,
         x_min=0,
+        x_max=255,
+        y_min=0,
+        y_max=float(hist_data.max()),
     )
     return str(hist)
 
 
-def calculate_new_size(cfg: Config, ctx: Context) -> None:
-    """Update Config with correct width/height.
+# TODO: improve this func to be more comprehensive
+def calculate_new_size(
+    pct_scale: float, orig_size: ImageSize, new_size: ImageSize
+) -> ImageSize:
+    """Calculate new dimensions and maintain image aspect ratio.
 
-    Percent scale (`-p`) takes precedence over width (`-mw`) and
-    height (`-mh`). Func does nothing if both height and width
-    are supplied at the command line.
+    Pct scale is given precedence over new size dims.
 
     Parameters
     ----------
-    - `cfg` Config object
-    - `ctx` Context objec
+    - `pct_scale` Scale by this factor
+    - `orig_size` ImageSize object of original file dims
+    - `new_size` ImageSize object of desired new dims
+
+    Returns
+    -------
+    - ImageSize object of correct proprotions for new size
 
     """
-    if cfg.pct_scale:
-        LOG.info("Scaling image by %.1f%%", cfg.pct_scale)
-        cfg.width = int(round(ctx.orig_size.width * (cfg.pct_scale / 100.0)))
-        cfg.height = int(round(ctx.orig_size.height * (cfg.pct_scale / 100.0)))
-    elif cfg.width and not cfg.height:
+    if pct_scale is not None and pct_scale > 0.0:
+        LOG.info("Scaling image by %.1f%%", pct_scale)
+        new_size.width = int(round(orig_size.width * (pct_scale / 100.0)))
+        new_size.height = int(round(orig_size.height * (pct_scale / 100.0)))
+    elif new_size.width > 0 and new_size.height <= 0:
         LOG.info("Calculating height based on width")
-        cfg.height = int(
-            round((cfg.width * ctx.orig_size.height) / ctx.orig_size.width)
+        new_size.height = int(
+            round((new_size.width * orig_size.height) / orig_size.width)
         )
-    elif cfg.height and not cfg.width:
+    elif new_size.height > 0 and new_size.width <= 0:
         LOG.info("Calculating width based on height")
-        cfg.width = int(
-            round((cfg.height * ctx.orig_size.width) / ctx.orig_size.height)
+        new_size.width = int(
+            round((new_size.height * orig_size.width) / orig_size.height)
         )
-    elif not cfg.height and not cfg.width:
-        LOG.info("No new width or height supplied; using current dims")
-        cfg.width = ctx.orig_size.width
-        cfg.height = ctx.orig_size.height
+    else:
+        LOG.info("No new width, height, or pct scale supplied; using current dims")
+        new_size.width = orig_size.width
+        new_size.height = orig_size.height
+    LOG.debug("New size: %s", new_size)
+    return new_size
 
 
 def process_image(cfg: Config) -> Context:
@@ -107,7 +111,11 @@ def process_image(cfg: Config) -> Context:
     LOG.info("Input dims: %s", ctx.orig_size)
     LOG.info("Input size: %s", humanize_bytes(ctx.orig_file_size))
 
-    calculate_new_size(cfg, ctx)
+    new_size = calculate_new_size(
+        cfg.pct_scale, ctx.orig_size, ImageSize(width=cfg.width, height=cfg.height)
+    )
+    cfg.width = new_size.width
+    cfg.height = new_size.height
 
     # Resize/resample
     if cfg.height != ctx.orig_size.height or cfg.width != ctx.orig_size.width:
@@ -155,6 +163,7 @@ def process_image(cfg: Config) -> Context:
     if ctx.image_buffer:
         img_out = Image.open(BytesIO(ctx.image_buffer))
         if cfg.show_histogram:
+            # print(generate_histogram(cfg))
             print(generate_histogram(cfg))
         ctx.new_size.width, ctx.new_size.height = img_out.size
         ctx.new_file_size = sys.getsizeof(ctx.image_buffer)

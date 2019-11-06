@@ -16,7 +16,7 @@ runargs +args='':
 
 # test
 runtest:
-    {{bin_name}} {{test_file_in}} {{test_file_out}} -vvf -mw 2000
+    {{bin_name}} {{test_file_in}} {{test_file_out}} -vvf -mw 2000 -hi
 
 # test text watermark
 runw +args='':
