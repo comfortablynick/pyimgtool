@@ -42,11 +42,11 @@ def generate_rgb_histogram(im: Image, show_axes: bool = False) -> str:
     fig.origin = False  # Don't draw 0 lines
     fig.set_x_limits(min_=0, max_=hist_bins - 1)
     fig.set_y_limits(min_=0)
-    fig.color_mode = "rgb"
+    fig.color_mode = "names"
 
     img = np.asarray(im)
     img_h, img_w, img_c = img.shape
-    colors = [(255, 0, 0), (0, 255, 0), (0, 0, 255)]
+    colors = ["red", "green", "blue"]
 
     for i in range(img_c):
         hist_data, bins = np.histogram(
