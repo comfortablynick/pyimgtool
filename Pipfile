@@ -24,7 +24,7 @@ opencv-python = "*"
 better-exceptions = "*"
 
 [requires]
-python_version = "3.7.4"
+python_version = "3.8"
 
 [pipenv]
 allow_prereleases = true
