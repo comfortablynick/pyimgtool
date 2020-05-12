@@ -4,10 +4,20 @@ from typing import List
 from pyimgtool.data_structures import Config, Context
 
 
-def humanize_bytes(num, suffix="B", si_prefix=False, round_digits=2) -> str:
+def humanize_bytes(
+        num: float, suffix: str = "B", si_prefix: bool=False, round_digits: int = 2
+) -> str:
     """Return a human friendly byte representation.
 
     Modified from: https://stackoverflow.com/questions/1094841/1094933#1094933
+
+    Args:
+        num: Raw bytes
+        suffix: String to append
+        si_prefix: Use 1000 instead of 1024 as divisor
+        round_digits: Number of decimal places to round
+
+    Returns: Human-readable string representation of bytes
     """
     div = 1000.0 if si_prefix else 1024.0
     unit_suffix = "i" if si_prefix else ""
@@ -21,15 +31,11 @@ def humanize_bytes(num, suffix="B", si_prefix=False, round_digits=2) -> str:
 def get_summary_report(cfg: Config, ctx: Context) -> List[str]:
     """Create formatted report based on details in `cfg` and `ctx`.
 
-    Parameters
-    ----------
-    - `cfg` Config object
-    - `ctx` Context object
+    Args:
+        cfg: Config object
+        ctx: Context object
 
-    Returns
-    -------
-    - List of strings of formatted report "table"
-
+    Returns: List of strings of formatted report "table"
     """
     size_reduction_bytes = ctx.orig_file_size - ctx.new_file_size
     report_title = " Processing Summary "

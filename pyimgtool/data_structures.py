@@ -32,10 +32,8 @@ class Position(Enum):
     def argparse(s):
         """Parse string values from CLI into Position.
 
-        Parameters
-        ----------
-        - `s` String value to match against enum attribute
-
+        Args:
+            s: Value to match against enum attribute
         """
         vals = {x.value.lower(): x for x in list(Position)}
         try:
@@ -106,14 +104,10 @@ class Config:
     def as_dict(self, exclude_attrs: List[str] = []) -> dict:
         """Return dict representation of object.
 
-        Parameters
-        ----------
-        - `exclude_attrs` List of attribute names to exclude from dict output
+        Args:
+            exclude_attrs: List of attribute names to exclude from dict output
 
-        Returns
-        -------
-        - dict
-
+        Returns: Dict representation of object
         """
         return attr.asdict(
             self, filter=lambda attr, value: attr.name not in exclude_attrs
@@ -160,14 +154,10 @@ class Context:
     def as_dict(self, exclude_attrs: List[str] = ["image_buffer", "orig_exif"]) -> dict:
         """Return dict representation of object.
 
-        Parameters
-        ----------
-        - `exclude_attrs` List of attribute names to exclude from dict output
+        Args:
+            exclude_attrs: List of attribute names to exclude from dict output
 
-        Returns
-        -------
-        - dict
-
+        Returns: Dict representation of object
         """
         return attr.asdict(
             self, filter=lambda attr, value: attr.name not in exclude_attrs

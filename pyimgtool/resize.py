@@ -55,16 +55,15 @@ def _width_is_big_enough(image: Image, width: int):
         raise ImageSizeError(image.size[0], width)
 
 
-def _height_is_big_enough(image: Image, size: Tuple[int, int]):
-    """Check that the image height is superior to `height`.
+def _height_is_big_enough(image: Image, size: Tuple[int, int]) -> None:
+    """Check that the image height is greater than desired height.
 
-    Raise ImageSizeError if image height < `height`.
+    Args:
+        image: PIL image.
+        size: Tuple of width, height.
 
-    Parameters
-    ----------
-    - `image` PIL image
-    - `height` Integer of image height
-
+    Raises:
+        ImageSizeError: if image height < size[1].
     """
     if size[1] > image.size[1]:
         raise ImageSizeError(image.size[1], size[1])
@@ -74,17 +73,12 @@ def _height_is_big_enough(image: Image, size: Tuple[int, int]):
 def resize_crop(image: Image, size: Tuple[int, int]) -> Image:
     """Crop the image with a centered rectangle of the specified size.
 
-    Parameters
-    ----------
-    - `image` Pillow image instance
-    - `size` 2-Tuple of image dimensions (width, height)
+    Args:
+        image: Pillow image instance
+        size: 2-Tuple of image dimensions (width, height)
 
-    Returns
-    -------
-    - PIL Image
-
+    Returns: PIL Image
     """
-
     img_format = image.format
     image = image.copy()
     old_size = image.size
@@ -105,16 +99,12 @@ def resize_cover(image: Image, size: Tuple[int, int], resample=Image.LANCZOS) ->
 
     Same behavior as `background-size: cover`.
 
-    Parameters
-    ----------
-    - `image` Pillow image instance
-    - `size` 2-Tuple of image dimensions (width, height)
-    - `resample` Resample method
+    Args:
+        image: Pillow image instance
+        size: 2-Tuple of image dimensions (width, height)
+        resample: Resample method
 
-    Returns
-    -------
-    - PIL Image
-
+    Returns: PIL Image
     """
     img_format = image.format
     img = image.copy()
@@ -142,18 +132,14 @@ def resize_contain(
     Image is not cropped and aspect ratio is kept intact.
     Same behavior as `background-size: contain`.
 
-    Parameters
-    ----------
-    - `image` Pillow image instance
-    - `size` 2-Tuple of image dimensions (width, height)
-    - `resample` Resample method
-    - `bg_color` RGBA Tuple for background (if image smaller than `size`)
-    - `bg_size` Background size (if different from `size`)
+    Args:
+        image: Pillow image instance
+        size: 2-Tuple of image dimensions (width, height)
+        resample: Resample method
+        bg_color: RGBA Tuple for background (if image smaller than `size`)
+        bg_size: Background size (if different from `size`)
 
-    Returns
-    -------
-    - PIL Image
-
+    Returns: PIL Image
     """
     img_format = image.format
     img = image.copy()
@@ -176,16 +162,12 @@ def resize_width(image: Image, size: Tuple[int, int], resample=Image.LANCZOS) ->
 
     Aspect ratio is kept intact.
 
-    Parameters
-    ----------
-    - `image` Pillow image instance
-    - `size` 2-Tuple of dimension integers
-    - `resample` Resample method
+    Args:
+        image: Pillow image instance
+        size: 2-Tuple of dimension integers
+        resample: Resample method
 
-    Returns
-    -------
-    - PIL Image
-
+    Returns: PIL Image
     """
     img_format = image.format
     img = image.copy()
@@ -205,16 +187,12 @@ def resize_height(image: Image, size: Tuple[int, int], resample=Image.LANCZOS) -
 
     Aspect ratio is kept intact.
 
-    Parameters
-    ----------
-    - `image` Pillow image instance
-    - `size` 2-Tuple of dimension integers
-    - `resample` Resample method
+    Args:
+        image: Pillow image instance
+        size: 2-Tuple of dimension integers
+        resample: Resample method
 
-    Returns
-    -------
-    - PIL Image
-
+    Returns: PIL Image
     """
     img_format = image.format
     img = image.copy()
@@ -235,16 +213,12 @@ def resize_thumbnail(
 
     Aspect ratio is kept intact while trying best to match `size`.
 
-    Parameters
-    ----------
-    - `image` Pillow image instance
-    - `size` 2-Tuple of dimension integers
-    - `resample` Resample method
+    Args:
+        image: Pillow image instance
+        size: 2-Tuple of dimension integers
+        resample: Resample method
 
-    Returns
-    -------
-    - PIL Image
-
+    Returns: PIL Image
     """
     img_format = image.format
     img = image.copy()
@@ -256,12 +230,10 @@ def resize_thumbnail(
 def resize(method, *args, **kwargs):
     """Direct arguments to one of the resize functions.
 
-    Parameters
-    ----------
-    - `method` One among 'crop', 'cover', 'contain', 'width', 'height' or 'thumbnail'
-    - `image` Pillow image instance
-    - `size` 2-tuple of integers [width, height]
-
+    Args:
+        method: One among 'crop', 'cover', 'contain', 'width', 'height' or 'thumbnail'
+        image: Pillow image instance
+        size: 2-tuple of integers [width, height]
     """
     valid_methods = ["crop", "cover", "contain", "width", "height", "thumbnail"]
     if method not in valid_methods:

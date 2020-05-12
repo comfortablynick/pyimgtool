@@ -11,8 +11,14 @@ from pyimgtool.version import __version__
 LOG = logging.getLogger(__name__)
 
 
-def parse_args(args: list):
-    """Parse command line arguments."""
+def parse_args(args: list) -> argparse.Namespace:
+    """Parse command line arguments.
+
+    Args:
+        args: Command line arguments
+
+    Return: Argparse namespace of parsed arguments
+    """
     # flags
     desc = textwrap.dedent(
         """\
@@ -97,6 +103,14 @@ def parse_args(args: list):
         help="maximum height of output",
         dest="height",
         metavar="HEIGHT",
+        type=int,
+        default=0,
+    )
+    image_group.add_argument(
+        "-ld",
+        help="longest dimension of output",
+        dest="longest_dim",
+        metavar="PIXELS",
         type=int,
         default=0,
     )
@@ -223,7 +237,6 @@ def parse_args(args: list):
 
     if parsed.pct_scale and (parsed.width or parsed.height):
         parser.error("Can use either -p or -mw/-mh, not both")
-
     if not 0 <= parsed.watermark_scale <= 1:
         parser.error("Value out of bounds: -ws must be between 0 and 1")
 

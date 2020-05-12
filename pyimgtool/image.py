@@ -22,14 +22,11 @@ LOG = logging.getLogger(__name__)
 def generate_rgb_histogram(im: Image, show_axes: bool = False) -> str:
     """Return string of histogram for image to print in terminal.
 
-    Parameters
-    ----------
-    - `im` PIL Image object
+    Args:
+        im: PIL Image object
+        show_axes: Print x and y axes
 
-    Returns
-    -------
-    - Str of histogram content for rgb image
-
+    Returns: String of histogram content for rgb image
     """
     hist_width = 50
     hist_height = 10
@@ -70,18 +67,15 @@ def calculate_new_size(
 
     Pct scale is given precedence over new size dims.
 
-    Parameters
-    ----------
-    - `orig_size` ImageSize object of original file dims
-    - `pct_scale` Optional factor to scale by (1.0-100.0)
-    - `new_size` Optional ImageSize object of desired new dims
+    Args:
+        orig_size: ImageSize object of original file dims
+        pct_scale: Optional factor to scale by (1.0-100.0)
+        new_size: Optional ImageSize object of desired new dims
 
-    Returns
-    -------
-    - ImageSize object of correct proprotions for new size
-
+    Returns: ImageSize object of correct proprotions for new size
     """
     calc_size = ImageSize()
+    # TODO: add support for longest_dim and shortest_dim
     if pct_scale is not None and pct_scale > 0.0:
         LOG.info("Scaling image by %.1f%%", pct_scale)
         calc_size.width = int(round(orig_size.width * (pct_scale / 100.0)))

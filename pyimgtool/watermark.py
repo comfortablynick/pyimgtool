@@ -16,12 +16,11 @@ LOG = logging.getLogger(__name__)
 def get_region_stats(im: Image, region: list) -> ImageStat:
     """Get ImageStat object for region of PIL image.
 
-    Parameters
-    ----------
-    - `image` The image to get the luminance of
-    - `region` The region to get the luminance of,
-               in the form [(x0, y0), (x1, y1)] or [x0, y0, x1, y1]
+    Args:
+        im: The image to get the luminance of
+        region: The region to get the luminance of, in the form [(x0, y0), (x1, y1)] or [x0, y0, x1, y1]
 
+    Returns: ImageStat object with stats
     """
     image_l = im.convert("L")
     mask = Image.new("L", image_l.size, 0)
@@ -35,12 +34,12 @@ def find_best_location(im: Image, size: ImageSize, padding: float) -> Position:
 
     The best location is the one with least luminance variance.
 
-    Parameters
-    ----------
-    - `im` PIL Image
-    - `size` Size of watermark image
-    - `padding` Proportion of padding to add around watermark
+    Args:
+        im: PIL Image
+        size: Size of watermark image
+        padding: Proportion of padding to add around watermark
 
+    Returns: Position object
     """
     bl_padding = tuple(
         map(
@@ -99,12 +98,10 @@ def find_best_location(im: Image, size: ImageSize, padding: float) -> Position:
 def add_copyright_date(im: Image, cfg: Config, ctx: Context) -> None:
     """Extract date taken from photo to add to copyright text.
 
-    Parameters
-    ----------
-    - `im` PIL Image
-    - `cfg` Config object
-    - `ctx` Context object
-
+    Args:
+        im: PIL Image
+        cfg: Config object
+        ctx: Context object
     """
     photo_dt = datetime.now()
     if ctx.orig_exif is not None:
@@ -124,12 +121,12 @@ def add_copyright_date(im: Image, cfg: Config, ctx: Context) -> None:
 def with_image(im: Image, cfg: Config, ctx: Context) -> Image:
     """Watermark with image according to Config.
 
-    Parameters
-    ----------
-    - `im` PIL Image
-    - `cfg` Config object
-    - `ctx` Context object
+    Args:
+        im: PIL Image
+        cfg: Config object
+        ctx: Context object
 
+    Returns: Watermarked image
     """
     if cfg.watermark_image is None:
         LOG.error("Missing watermark_image in cfg")
@@ -172,12 +169,12 @@ def with_text(im: Image, cfg: Config, ctx: Context) -> Image:
     (if available) to attempt to determine copyright date based on
     date photo was taken.
 
-    Parameters
-    ----------
-    - `im` PIL Image
-    - `cfg` Config object
-    - `ctx` Context object
+    Args:
+        im: PIL Image
+        cfg: Config object
+        ctx: Context object
 
+    Return: Watermarked image
     """
     if cfg.text is None and cfg.text_copyright is None:
         LOG.error("Missing text or copyright text in cfg")
