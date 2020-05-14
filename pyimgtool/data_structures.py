@@ -52,6 +52,8 @@ class Config:
     suffix: Optional[str] = None
     force: bool = False
     no_op: bool = False
+    jpg_quality: int = 0
+    commands: Optional[List[str]] = None
     pct_scale: float = 0
     width: int = 0
     height: int = 0
@@ -70,7 +72,6 @@ class Config:
     text_position: Optional[Position] = None
     text_scale: int = 0
     text_padding: int = 0
-    jpg_quality: int = 0
 
     @staticmethod
     def from_args(args: argparse.Namespace):
@@ -82,23 +83,28 @@ class Config:
         cfg.suffix = args.suffix
         cfg.force = args.force
         cfg.no_op = args.no_op
-        cfg.pct_scale = args.pct_scale
-        cfg.width = args.width
-        cfg.height = args.height
-        cfg.keep_exif = args.keep_exif
-        cfg.show_histogram = args.show_histogram
-        cfg.watermark_image = args.watermark_image
-        cfg.watermark_rotation = args.watermark_rotation
-        cfg.watermark_opacity = args.watermark_opacity
-        cfg.watermark_position = args.watermark_position
-        cfg.watermark_scale = args.watermark_scale
-        cfg.text = args.text
-        cfg.text_copyright = args.text_copyright
-        cfg.text_rotation = args.text_rotation
-        cfg.text_opacity = args.text_opacity
-        cfg.text_position = args.text_position
-        cfg.text_scale = args.text_scale
         cfg.jpg_quality = args.jpg_quality
+        cfg.commands = args.command
+        cfg.show_histogram = args.show_histogram
+        if args.command is not None:
+            if "resize" in args.command:
+                cfg.pct_scale = args.pct_scale
+                cfg.width = args.width
+                cfg.height = args.height
+                cfg.keep_exif = args.keep_exif
+            if "watermark" in args.command:
+                cfg.watermark_image = args.watermark_image
+                cfg.watermark_rotation = args.watermark_rotation
+                cfg.watermark_opacity = args.watermark_opacity
+                cfg.watermark_position = args.watermark_position
+                cfg.watermark_scale = args.watermark_scale
+            if "text" in args.command:
+                cfg.text = args.text
+                cfg.text_copyright = args.text_copyright
+                cfg.text_rotation = args.text_rotation
+                cfg.text_opacity = args.text_opacity
+                cfg.text_position = args.text_position
+                cfg.text_scale = args.text_scale
         return cfg
 
     def as_dict(self, exclude_attrs: List[str] = []) -> dict:

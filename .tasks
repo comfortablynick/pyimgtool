@@ -1,0 +1,7 @@
+; vim: set fenc=utf-8 ft=dosini:
+
+[help]
+command=pyimgtool -h
+cwd=<root>
+output=terminal
+save=1

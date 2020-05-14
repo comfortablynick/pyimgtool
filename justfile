@@ -37,3 +37,12 @@ help:
 # create dist and upload to pypi
 pack:
     rm -rf dist && python setup.py sdist bdist_wheel && twine upload dist/*
+
+generate_tasks:
+    #!/usr/bin/env python3
+    from subprocess import run
+    import re
+    tasks = run(["just", "-l"], capture_output=True)
+    tasks = [t.lstrip() for t in tasks.stdout.decode().split("\n")]
+    splits = [re.split(r"\s+", t) for t in tasks if t != ""]
+    print(splits)

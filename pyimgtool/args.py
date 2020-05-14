@@ -32,15 +32,11 @@ def parse_args(args: list) -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         prog="pyimgtool",
         description=desc,
-        add_help=False,
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
 
-    # Positionals
-    parser.add_argument("input", help="image file to process", metavar="INPUT")
-    parser.add_argument("output", help="file to save processed image", metavar="OUTPUT")
-
-    # Flags
+    # Optional flags
+    parser.add_argument("-V", "--version", action="version", version=f"%(prog)s {__version__}")
     parser.add_argument(
         "-c",
         help="read from this config file (default: conf.ini)",
@@ -57,9 +53,6 @@ def parse_args(args: list) -> argparse.Namespace:
         dest="verbosity",
         default=0,
     )
-    parser.add_argument("-h", action="help", help="show this help message and exit")
-    parser.add_argument("--help", action="help", help=argparse.SUPPRESS)
-    parser.add_argument("-V", action="version", version=f"%(prog)s {__version__}")
     parser.add_argument(
         "-s",
         nargs=1,
@@ -80,17 +73,43 @@ def parse_args(args: list) -> argparse.Namespace:
         action="store_true",
         dest="quiet",
     )
+    parser.add_argument(
+        "-H",
+        help="print image histogram to console",
+        dest="show_histogram",
+        action="store_true",
+    )
+    subparsers = parser.add_subparsers(
+        title="Commands",
+        dest="command",
+        description="image operations",
+        help="valid commands",
+        # metavar="<command>"
+    )
 
-    # Image group
-    image_group = parser.add_argument_group("General image options")
-    image_group.add_argument(
+    common = parser.add_argument_group("Common parameters")
+    common.add_argument("-i", help="image file to process", action="store", dest="input", metavar="INPUT")
+    common.add_argument("-o", help="file to save processed image", action="store", dest="output", metavar="OUTPUT")
+    common.add_argument(
+        "-q",
+        help="Quality setting for jpeg files (an integer between 1 and 100; default: 75)",
+        type=int,
+        dest="jpg_quality",
+        default=75,
+        metavar="QUALITY",
+    )
+
+
+    # resize
+    resize = subparsers.add_parser("resize", help="resize image dimensions")
+    resize.add_argument(
         "-p",
         help="scale output by percent of orig size",
         dest="pct_scale",
         metavar="SCALE",
         type=float,
     )
-    image_group.add_argument(
+    resize.add_argument(
         "-mw",
         help="maximum width of output",
         dest="width",
@@ -98,7 +117,7 @@ def parse_args(args: list) -> argparse.Namespace:
         type=int,
         default=0,
     )
-    image_group.add_argument(
+    resize.add_argument(
         "-mh",
         help="maximum height of output",
         dest="height",
@@ -106,7 +125,7 @@ def parse_args(args: list) -> argparse.Namespace:
         type=int,
         default=0,
     )
-    image_group.add_argument(
+    resize.add_argument(
         "-ld",
         help="longest dimension of output",
         dest="longest_dim",
@@ -114,26 +133,20 @@ def parse_args(args: list) -> argparse.Namespace:
         type=int,
         default=0,
     )
-    image_group.add_argument(
+    resize.add_argument(
         "-ke", help="keep exif data if possible", dest="keep_exif", action="store_true"
     )
-    image_group.add_argument(
-        "-hi",
-        help="print image histogram to console",
-        dest="show_histogram",
-        action="store_true",
-    )
 
-    # Watermark group
-    watermark_group = parser.add_argument_group("Watermark options")
-    watermark_group.add_argument(
+    # Watermark
+    watermark = subparsers.add_parser("watermark", help="add watermark to image")
+    watermark.add_argument(
         "-wi",
         help="image file to use as watermark",
         type=Path,
         dest="watermark_image",
         metavar="PATH",
     )
-    watermark_group.add_argument(
+    watermark.add_argument(
         "-wr",
         help="angle of watermark rotation",
         dest="watermark_rotation",
@@ -141,7 +154,7 @@ def parse_args(args: list) -> argparse.Namespace:
         type=int,
         default=0,
     )
-    watermark_group.add_argument(
+    watermark.add_argument(
         "-wo",
         help="watermark opacity",
         dest="watermark_opacity",
@@ -149,7 +162,7 @@ def parse_args(args: list) -> argparse.Namespace:
         metavar="OPACITY",
         default=0.3,
     )
-    watermark_group.add_argument(
+    watermark.add_argument(
         "-wp",
         help="watermark position",
         dest="watermark_position",
@@ -158,7 +171,7 @@ def parse_args(args: list) -> argparse.Namespace:
         type=Position.argparse,
         choices=list(Position),
     )
-    watermark_group.add_argument(
+    watermark.add_argument(
         "-ws",
         help="watermark scale in percent of image size (default = 10)",
         dest="watermark_scale",
@@ -166,35 +179,37 @@ def parse_args(args: list) -> argparse.Namespace:
         default=0.2,
         type=float,
     )
-    text_group = parser.add_argument_group("Text options")
-    text_group.add_argument(
+
+    # Text
+    text = subparsers.add_parser("text", help="add text to image")
+    text.add_argument(
         "-t", help="text to display on image", dest="text", metavar="TEXT", type=str
     )
-    text_group.add_argument(
-        "-tc",
+    text.add_argument(
+        "-c",
         help="display copyright message after © and date taken",
         dest="text_copyright",
         metavar="MESSAGE",
         type=str,
     )
-    text_group.add_argument(
-        "-tr",
+    text.add_argument(
+        "-r",
         help="angle of text rotation",
         dest="text_rotation",
         metavar="ANGLE",
         type=int,
         default=0,
     )
-    text_group.add_argument(
-        "-to",
+    text.add_argument(
+        "-o",
         help="text opacity",
         dest="text_opacity",
         type=float,
         metavar="OPACITY",
         default=0.3,
     )
-    text_group.add_argument(
-        "-tp",
+    text.add_argument(
+        "-p",
         help="text position",
         dest="text_position",
         metavar="POS",
@@ -202,24 +217,13 @@ def parse_args(args: list) -> argparse.Namespace:
         type=Position.argparse,
         choices=list(Position),
     )
-    text_group.add_argument(
-        "-ts",
+    text.add_argument(
+        "-s",
         help="scale of text relative to image width",
         dest="text_scale",
         metavar="SCALE",
         default=0.20,
         type=float,
-    )
-
-    # Jpg group
-    jpg_group = parser.add_argument_group("Jpeg options")
-    jpg_group.add_argument(
-        "-q",
-        help="Quality setting for jpeg files (an integer between 1 and 100; default: 75)",
-        type=int,
-        dest="jpg_quality",
-        default=75,
-        metavar="QUALITY",
     )
 
     if parser._positionals.title is not None:
@@ -241,6 +245,6 @@ def parse_args(args: list) -> argparse.Namespace:
         parser.error("Value out of bounds: -ws must be between 0 and 1")
 
     if parsed.text is not None and parsed.text_copyright is not None:
-        parser.error("Can use either -t or -tc, not both")
+        parser.error("Can use either -t or -c, not both")
 
     return parsed
