@@ -70,7 +70,3 @@ def main():
 
     ctx.time_end = perf_counter()
     print(*get_summary_report(cfg, ctx), sep="\n")
-
-
-if __name__ == "__main__":
-    main()

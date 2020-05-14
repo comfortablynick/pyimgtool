@@ -52,7 +52,7 @@ setup(
         "numpy",
         "plotille",
     ],
-    entry_points={"console_scripts": ["pyimgtool = pyimgtool.__main__:main"]},
+    entry_points={"console_scripts": ["pyimgtool = pyimgtool.cli:main"]},
     python_requires=">=3.6",
     project_urls={
         "Bug Reports": "https://github.com/comfortablynick/pyimgtool/issues",
