@@ -239,12 +239,12 @@ def parse_args(args: list) -> argparse.Namespace:
     if not 0 <= parsed.jpg_quality <= 100:
         parser.error(f"Quality (-q) must be within 0-100; found: {parsed.jpg_quality}")
 
-    if parsed.pct_scale and (parsed.width or parsed.height):
-        parser.error("Can use either -p or -mw/-mh, not both")
-    if not 0 <= parsed.watermark_scale <= 1:
-        parser.error("Value out of bounds: -ws must be between 0 and 1")
-
-    if parsed.text is not None and parsed.text_copyright is not None:
-        parser.error("Can use either -t or -c, not both")
+    # if parsed.pct_scale and (parsed.width or parsed.height):
+    #     parser.error("Can use either -p or -mw/-mh, not both")
+    # if not 0 <= parsed.watermark_scale <= 1:
+    #     parser.error("Value out of bounds: -ws must be between 0 and 1")
+    #
+    # if parsed.text is not None and parsed.text_copyright is not None:
+    #     parser.error("Can use either -t or -c, not both")
 
     return parsed

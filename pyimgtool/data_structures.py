@@ -1,12 +1,11 @@
 """Classes, enums, and misc data containers."""
 
-import argparse
 import logging
+from argparse import Namespace as ArgparseNamespace
+from dataclasses import asdict, dataclass, field
 from enum import Enum
 from pathlib import Path
-from typing import List, Optional, Tuple
-
-import attr
+from typing import Any, List, Optional, Tuple
 
 LOG = logging.getLogger(__name__)
 
@@ -42,7 +41,7 @@ class Position(Enum):
             return s
 
 
-@attr.s(auto_attribs=True)
+@dataclass
 class Config:
     """Store options from config file and command line."""
 
@@ -74,7 +73,7 @@ class Config:
     text_padding: int = 0
 
     @staticmethod
-    def from_args(args: argparse.Namespace):
+    def from_args(args: ArgparseNamespace):
         """Create Config instance from file and command line args."""
         cfg = Config()
         cfg.input_file = args.input
@@ -107,20 +106,8 @@ class Config:
                 cfg.text_scale = args.text_scale
         return cfg
 
-    def as_dict(self, exclude_attrs: List[str] = []) -> dict:
-        """Return dict representation of object.
 
-        Args:
-            exclude_attrs: List of attribute names to exclude from dict output
-
-        Returns: Dict representation of object
-        """
-        return attr.asdict(
-            self, filter=lambda attr, value: attr.name not in exclude_attrs
-        )
-
-
-@attr.s(auto_attribs=True)
+@dataclass
 class ImageSize:
     """Pixel dimensions of image."""
 
@@ -131,40 +118,24 @@ class ImageSize:
         """Return string representation, e.g.: width x height px."""
         return f"{self.width} x {self.height} px"
 
-    def __repr__(self):
-        """Return string representation, same as __str__."""
-        return self.__str__
-
     @property
     def area(self) -> int:
         """Pixel area of image."""
         return self.width * self.height
 
 
-@attr.s(auto_attribs=True)
+@dataclass
 class Context:
     """Keep track of details of processing for later reporting."""
 
-    orig_size: ImageSize = ImageSize()
-    new_size: ImageSize = ImageSize()
-    watermark_size: ImageSize = ImageSize()
+    orig_size: ImageSize = field(default_factory=ImageSize)
+    new_size: ImageSize = field(default_factory=ImageSize)
+    watermark_size: ImageSize = field(default_factory=ImageSize)
     orig_file_size: int = 0
     new_file_size: int = 0
     orig_dpi: Tuple[int, int] = (0, 0)
     new_dpi: Tuple[int, int] = (0, 0)
-    image_buffer: Optional[bytes] = None
-    orig_exif: Optional[dict] = None
+    image_buffer: Optional[bytes] = field(default=None, repr=False)
+    orig_exif: Optional[dict] = field(default=None, repr=False)
     time_start: float = 0
     time_end: float = 0
-
-    def as_dict(self, exclude_attrs: List[str] = ["image_buffer", "orig_exif"]) -> dict:
-        """Return dict representation of object.
-
-        Args:
-            exclude_attrs: List of attribute names to exclude from dict output
-
-        Returns: Dict representation of object
-        """
-        return attr.asdict(
-            self, filter=lambda attr, value: attr.name not in exclude_attrs
-        )

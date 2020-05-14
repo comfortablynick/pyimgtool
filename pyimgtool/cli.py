@@ -3,7 +3,6 @@
 import logging
 import sys
 from pathlib import Path
-from pprint import pformat
 from time import perf_counter
 
 from sty import ef, fg, rs
@@ -31,15 +30,14 @@ def main():
     for l in loggers:
         l.setLevel(log_level)
 
-    LOG.debug("Runtime config:\n%s", pformat(cfg.as_dict(), indent=2))
+    LOG.debug("Runtime config:\n%s", cfg)
     ctx = process_image(cfg)
     ctx.time_start = time_start
     exclude_ctx_attrs = ["image_buffer"]
     if cfg.verbosity < 3:
         exclude_ctx_attrs.append("orig_exif")
     LOG.debug(
-        "Image Context:\n%s",
-        pformat(ctx.as_dict(exclude_attrs=exclude_ctx_attrs), indent=2),
+        "Image Context:\n%s", ctx,
     )
 
     if not cfg.no_op:
