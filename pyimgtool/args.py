@@ -38,13 +38,7 @@ def parse_args(args: list) -> argparse.Namespace:
     # Optional flags
     parser.add_argument("-V", "--version", action="version", version=f"%(prog)s {__version__}")
     parser.add_argument(
-        "-c",
-        help="read from this config file (default: conf.ini)",
-        dest="config_file",
-        default="../conf.ini",
-    )
-    parser.add_argument(
-        "-f", help="force overwrite of existing file", dest="force", action="store_true"
+        "-f", "--force", help="force overwrite of existing file", dest="force", action="store_true"
     )
     parser.add_argument(
         "-v",
@@ -62,13 +56,13 @@ def parse_args(args: list) -> argparse.Namespace:
         default="_edited",
     )
     parser.add_argument(
-        "-n",
+        "-n", "--noop",
         help="display results only; don't save file",
         dest="no_op",
         action="store_true",
     )
     parser.add_argument(
-        "-Q",
+        "-Q", "--quiet",
         help="quiet debug log output to console (opposite of -v)",
         action="store_true",
         dest="quiet",
@@ -140,14 +134,14 @@ def parse_args(args: list) -> argparse.Namespace:
     # Watermark
     watermark = subparsers.add_parser("watermark", help="add watermark to image")
     watermark.add_argument(
-        "-wi",
+        "-i",
         help="image file to use as watermark",
         type=Path,
         dest="watermark_image",
         metavar="PATH",
     )
     watermark.add_argument(
-        "-wr",
+        "-r",
         help="angle of watermark rotation",
         dest="watermark_rotation",
         metavar="ANGLE",
@@ -155,7 +149,7 @@ def parse_args(args: list) -> argparse.Namespace:
         default=0,
     )
     watermark.add_argument(
-        "-wo",
+        "-o",
         help="watermark opacity",
         dest="watermark_opacity",
         type=float,
@@ -163,7 +157,7 @@ def parse_args(args: list) -> argparse.Namespace:
         default=0.3,
     )
     watermark.add_argument(
-        "-wp",
+        "-p",
         help="watermark position",
         dest="watermark_position",
         metavar="POS",
@@ -172,7 +166,7 @@ def parse_args(args: list) -> argparse.Namespace:
         choices=list(Position),
     )
     watermark.add_argument(
-        "-ws",
+        "-s",
         help="watermark scale in percent of image size (default = 10)",
         dest="watermark_scale",
         metavar="SCALE",
