@@ -8,7 +8,8 @@ from pathlib import PurePath
 from PIL import Image, ImageDraw, ImageFont, ImageStat
 
 from pyimgtool.data_structures import Config, Context, ImageSize, Position
-from pyimgtool.resize import resize_height
+from pyimgtool.utils import get_pkg_root
+from pyimgtool.commands.resize import resize_height
 
 LOG = logging.getLogger(__name__)
 
@@ -189,8 +190,8 @@ def with_text(im: Image, cfg: Config, ctx: Context) -> Image:
     offset_y = cfg.text_padding
 
     try:
-        cwd = PurePath(os.path.dirname(__file__))
-        font_path = str(PurePath.joinpath(cwd, "fonts", "SourceSansPro-Regular.ttf"))
+        # cwd = PurePath(os.path.dirname(__file__))
+        font_path = str(PurePath.joinpath(get_pkg_root(), "fonts", "SourceSansPro-Regular.ttf"))
         font = ImageFont.truetype(font=font_path, size=font_size)
     except OSError:
         LOG.error("Could not find font '%s', aborting text watermark", font_path)

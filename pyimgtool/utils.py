@@ -1,11 +1,17 @@
 """Helper functions."""
+from pathlib import PurePath
 from typing import List
 
 from pyimgtool.data_structures import Config, Context
 
 
+def get_pkg_root() -> PurePath:
+    """Return package root folder."""
+    return PurePath(__file__).parent
+
+
 def humanize_bytes(
-        num: float, suffix: str = "B", si_prefix: bool=False, round_digits: int = 2
+    num: float, suffix: str = "B", si_prefix: bool = False, round_digits: int = 2
 ) -> str:
     """Return a human friendly byte representation.
 

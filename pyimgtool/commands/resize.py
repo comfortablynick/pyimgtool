@@ -7,12 +7,13 @@ import logging
 import math
 import sys
 from functools import wraps
-from typing import Tuple
+from typing import Tuple, Optional
 
 import cv2
 from PIL import Image
 
 from pyimgtool.exceptions import ImageSizeError
+from pyimgtool.data_structures import ImageSize
 
 LOG = logging.getLogger(__name__)
 
@@ -243,3 +244,42 @@ def resize(method, *args, **kwargs):
     method = f"resize_{method}"
     LOG.info("Resizing with %s()", method)
     return getattr(sys.modules[__name__], method)(*args, **kwargs)
+
+def calculate_new_size(
+    orig_size: ImageSize, pct_scale: Optional[float], new_size: Optional[ImageSize]
+) -> ImageSize:
+    """Calculate new dimensions and maintain image aspect ratio.
+
+    Pct scale is given precedence over new size dims.
+
+    Args:
+        orig_size: ImageSize object of original file dims
+        pct_scale: Optional factor to scale by (1.0-100.0)
+        new_size: Optional ImageSize object of desired new dims
+
+    Returns: ImageSize object of correct proprotions for new size
+    """
+    calc_size = ImageSize()
+    # TODO: add support for longest_dim and shortest_dim
+    if pct_scale is not None and pct_scale > 0.0:
+        LOG.info("Scaling image by %.1f%%", pct_scale)
+        calc_size.width = int(round(orig_size.width * (pct_scale / 100.0)))
+        calc_size.height = int(round(orig_size.height * (pct_scale / 100.0)))
+        return calc_size
+
+    if new_size is not None and new_size != calc_size:
+        if new_size.width > 0 and new_size.height <= 0:
+            LOG.info("Calculating height based on width")
+            calc_size.width = new_size.width
+            calc_size.height = int(
+                round((calc_size.width * orig_size.height) / orig_size.width)
+            )
+        elif new_size.height > 0 and new_size.width <= 0:
+            LOG.info("Calculating width based on height")
+            calc_size.height = new_size.height
+            calc_size.width = int(
+                round((calc_size.height * orig_size.width) / orig_size.height)
+            )
+        return calc_size
+    LOG.info("No new width, height, or pct scale supplied; using current dims")
+    return orig_size
