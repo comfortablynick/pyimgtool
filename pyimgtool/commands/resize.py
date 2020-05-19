@@ -246,7 +246,7 @@ def resize(method, *args, **kwargs):
     return getattr(sys.modules[__name__], method)(*args, **kwargs)
 
 def calculate_new_size(
-    orig_size: ImageSize, pct_scale: Optional[float], new_size: Optional[ImageSize]
+    orig_size: ImageSize, scale: Optional[float], new_size: Optional[ImageSize]
 ) -> ImageSize:
     """Calculate new dimensions and maintain image aspect ratio.
 
@@ -254,17 +254,17 @@ def calculate_new_size(
 
     Args:
         orig_size: ImageSize object of original file dims
-        pct_scale: Optional factor to scale by (1.0-100.0)
+        scale: Optional factor to scale by (0-1.0)
         new_size: Optional ImageSize object of desired new dims
 
     Returns: ImageSize object of correct proprotions for new size
     """
     calc_size = ImageSize()
     # TODO: add support for longest_dim and shortest_dim
-    if pct_scale is not None and pct_scale > 0.0:
-        LOG.info("Scaling image by %.1f%%", pct_scale)
-        calc_size.width = int(round(orig_size.width * (pct_scale / 100.0)))
-        calc_size.height = int(round(orig_size.height * (pct_scale / 100.0)))
+    if scale is not None and scale > 0.0:
+        LOG.info("Scaling image by %.1f%%", scale)
+        calc_size.width = int(round(orig_size.width * scale))
+        calc_size.height = int(round(orig_size.height * scale))
         return calc_size
 
     if new_size is not None and new_size != calc_size:

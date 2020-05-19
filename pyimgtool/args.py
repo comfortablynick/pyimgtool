@@ -2,8 +2,10 @@
 
 import argparse
 import logging
+import sys
 import textwrap
 from pathlib import Path
+from typing import List
 
 from pyimgtool.data_structures import Position
 from pyimgtool.version import __version__
@@ -11,7 +13,7 @@ from pyimgtool.version import __version__
 LOG = logging.getLogger(__name__)
 
 
-def parse_args(args: list) -> argparse.Namespace:
+def parse_args(args: list) -> List[argparse.Namespace]:
     """Parse command line arguments.
 
     Args:
@@ -35,44 +37,6 @@ def parse_args(args: list) -> argparse.Namespace:
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
 
-    # Optional flags
-    parser.add_argument("-V", "--version", action="version", version=f"%(prog)s {__version__}")
-    parser.add_argument(
-        "-f", "--force", help="force overwrite of existing file", dest="force", action="store_true"
-    )
-    parser.add_argument(
-        "-v",
-        help="increase logging output to console",
-        action="count",
-        dest="verbosity",
-        default=0,
-    )
-    parser.add_argument(
-        "-s",
-        nargs=1,
-        help="text suffix appended to INPUT path if no OUTPUT file given",
-        metavar="TEXT",
-        dest="suffix",
-        default="_edited",
-    )
-    parser.add_argument(
-        "-n", "--noop",
-        help="display results only; don't save file",
-        dest="no_op",
-        action="store_true",
-    )
-    parser.add_argument(
-        "-Q", "--quiet",
-        help="quiet debug log output to console (opposite of -v)",
-        action="store_true",
-        dest="quiet",
-    )
-    parser.add_argument(
-        "-H",
-        help="print image histogram to console",
-        dest="show_histogram",
-        action="store_true",
-    )
     subparsers = parser.add_subparsers(
         title="Commands",
         dest="command",
@@ -81,27 +45,55 @@ def parse_args(args: list) -> argparse.Namespace:
         # metavar="<command>"
     )
 
-    common = parser.add_argument_group("Common parameters")
-    common.add_argument("-i", help="image file to process", action="store", dest="input", metavar="INPUT")
-    common.add_argument("-o", help="file to save processed image", action="store", dest="output", metavar="OUTPUT")
-    common.add_argument(
-        "-q",
-        help="Quality setting for jpeg files (an integer between 1 and 100; default: 75)",
-        type=int,
-        dest="jpg_quality",
-        default=75,
-        metavar="QUALITY",
+    # input
+    open = subparsers.add_parser("open", help="open image for editing")
+    open.add_argument(
+        "input",
+        help="image file to process",
+        type=argparse.FileType(mode="rb"),
+        nargs=1,
+        metavar="INPUT_FILE",
     )
-
+    open.add_argument(
+        "-V", "--version", action="version", version=f"%(prog)s {__version__}"
+    )
+    open.add_argument(
+        "-v",
+        help="increase logging output to console",
+        action="count",
+        dest="verbosity",
+        default=0,
+    )
+    # parser.add_argument(
+    #     "-n",
+    #     "--noop",
+    #     help="display results only; don't save file",
+    #     dest="no_op",
+    #     action="store_true",
+    # )
+    open.add_argument(
+        "-Q",
+        "--quiet",
+        help="quiet debug log output to console (opposite of -v)",
+        action="store_true",
+        dest="quiet",
+    )
+    open.add_argument(
+        "-H",
+        "--histogram",
+        help="print image histogram to console",
+        dest="show_histogram",
+        action="store_true",
+    )
 
     # resize
     resize = subparsers.add_parser("resize", help="resize image dimensions")
     resize.add_argument(
-        "-p",
-        help="scale output by percent of orig size",
-        dest="pct_scale",
+        "-s",
+        help="scale output size",
+        dest="scale",
         metavar="SCALE",
-        type=float,
+        type=lambda n: 0 < float(n) < 1 or parser.error("resize scale must be between 0 and 1"),
     )
     resize.add_argument(
         "-mw",
@@ -126,9 +118,6 @@ def parse_args(args: list) -> argparse.Namespace:
         metavar="PIXELS",
         type=int,
         default=0,
-    )
-    resize.add_argument(
-        "-ke", help="keep exif data if possible", dest="keep_exif", action="store_true"
     )
 
     # Watermark
@@ -171,7 +160,7 @@ def parse_args(args: list) -> argparse.Namespace:
         dest="watermark_scale",
         metavar="SCALE",
         default=0.2,
-        type=float,
+        type=lambda n: 0 < float(n) < 1 or parser.error("watermark scale must be between 0 and 1"),
     )
 
     # Text
@@ -217,21 +206,66 @@ def parse_args(args: list) -> argparse.Namespace:
         dest="text_scale",
         metavar="SCALE",
         default=0.20,
-        type=float,
+        type=lambda n: 0 < float(n) < 1 or parser.error("text scale must be between 0 and 1"),
+    )
+
+    save = subparsers.add_parser("save", help="save edited file to disk")
+    save.add_argument(
+        "output",
+        help="file to save processed image",
+        type=argparse.FileType(mode="w"),
+        metavar="OUTPUT_FILE",
+    )
+    save.add_argument(
+        "-f",
+        "--force",
+        help="force overwrite of existing file",
+        dest="force",
+        action="store_true",
+    )
+    save.add_argument(
+        "-k", help="keep exif data if possible", dest="keep_exif", action="store_true"
+    )
+    save.add_argument(
+        "-q",
+        help="Quality setting for jpeg files (an integer between 1 and 100; default: 75)",
+        type=lambda n: 0 <= int(n) <= 100
+        or parser.error("quality must be between 0 and 100"),
+        dest="jpg_quality",
+        default=75,
+        metavar="QUALITY",
+    )
+    save.add_argument(
+        "-s",
+        nargs=1,
+        help="text suffix appended to INPUT path if no OUTPUT file given",
+        metavar="TEXT",
+        dest="suffix",
+        default="_edited",
     )
 
     if parser._positionals.title is not None:
         parser._positionals.title = "Arguments"
     if parser._optionals.title is not None:
         parser._optionals.title = "Options"
-    parsed = parser.parse_args(args)
+    namespaces = []
+    if not args:
+        print("error: arguments required", file=sys.stderr)
+        parser.print_usage(file=sys.stderr)
+        sys.exit(1)
+    while args:
+        parsed, args = parser.parse_known_args(args)
+        namespaces.append(parsed)
 
     # do basic validation
-    if parsed.quiet > 0:
-        parsed.verbosity = 0
+    if namespaces[0].command != "open":
+        print("error: open command must be called first", file=sys.stderr)
+        sys.exit(1)
+    if namespaces[0].quiet > 0:
+        namespaces[0].verbosity = 0
 
-    if not 0 <= parsed.jpg_quality <= 100:
-        parser.error(f"Quality (-q) must be within 0-100; found: {parsed.jpg_quality}")
+    # if not 0 <= parsed.jpg_quality <= 100:
+    #     parser.error(f"Quality (-q) must be within 0-100; found: {parsed.jpg_quality}")
 
     # if parsed.pct_scale and (parsed.width or parsed.height):
     #     parser.error("Can use either -p or -mw/-mh, not both")
@@ -240,5 +274,4 @@ def parse_args(args: list) -> argparse.Namespace:
     #
     # if parsed.text is not None and parsed.text_copyright is not None:
     #     parser.error("Can use either -t or -c, not both")
-
-    return parsed
+    return namespaces

@@ -17,7 +17,6 @@ isort = "*"
 pillow = "*"
 piexif = "*"
 pyimgtool = {editable = true,path = "."}
-attrs = "*"
 sty = "*"
 plotille = "*"
 opencv-python = "*"

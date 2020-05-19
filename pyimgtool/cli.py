@@ -25,12 +25,13 @@ LOG = logging.getLogger(__name__)
 
 
 def main():
-    """Process image based on config file and command-line arguments."""
+    """Process image based on cli args."""
     time_start = perf_counter()
-    cfg = Config.from_args(parse_args(sys.argv[1:]))
+
+    argslist = parse_args(sys.argv[1:])
     log_level = 0
     try:
-        log_level = (0, 20, 10)[cfg.verbosity]
+        log_level = (0, 20, 10)[argslist[0].verbosity]
     except IndexError:
         log_level = 10
     loggers = [logging.getLogger(name) for name in logging.root.manager.loggerDict]
@@ -38,44 +39,106 @@ def main():
     for l in loggers:
         l.setLevel(log_level)
 
-    LOG.debug("Runtime config:\n%s", cfg)
-    ctx = process_image(cfg)
-    ctx.time_start = time_start
-    exclude_ctx_attrs = ["image_buffer"]
-    if cfg.verbosity < 3:
-        exclude_ctx_attrs.append("orig_exif")
-    LOG.debug(
-        "Image Context:\n%s", ctx,
-    )
+    # main vars
+    im = None
+    in_image_size = ImageSize(0,0)
+    in_file_size = 0
+    in_dpi = 0
+    in_exif = None
+    out_image_size = ImageSize(0,0)
 
-    if not cfg.no_op:
-        if not ctx.image_buffer:
-            LOG.critical("Image buffer cannot be None")
-            raise ValueError("Image buffer is None")
-        LOG.info("Saving buffer to %s", cfg.output_file)
+    for args in argslist:
+        LOG.debug(f"{args=}")
 
-        # Create output dir if it doesn't exist
-        out_path = Path(cfg.output_file)
-        if out_path.exists():
-            # output file exists
-            if not cfg.force:
-                print(
-                    fg.red
-                    + ef.bold
-                    + f"Error: file '{out_path}' exists; use -f option to force overwrite."
-                    + rs.all,
-                    file=sys.stderr,
-                )
-                return
-        out_path.parent.mkdir(parents=True, exist_ok=True)
+        if args.command == 'open':
+            inbuf = BytesIO()
+            inbuf.write(args.input[0].read())
+            in_file_size = inbuf.tell()
+            im = Image.open(inbuf)
+            in_image_size = ImageSize(im.size)
+            LOG.info("Input dims: %s", in_image_size)
+            try:
+                exif = piexif.load(args.input[0].name)
+                del exif["thumbnail"]
+                in_exif = exif
+            except KeyError:
+                pass
+            in_dpi = im.info["dpi"]
+            LOG.info("Input size: %s", humanize_bytes(in_file_size))
+        elif args.command == 'resize':
+            new_size = resize.calculate_new_size(
+               in_image_size, args.scale, ImageSize(width=args.width, height=args.height)
+            )
+            out_image_size = ImageSize(width=new_size.width, height=new_size.height)
 
-        with out_path.open("wb") as f:
-            f.write(ctx.image_buffer)
-    else:
-        print(fg.li_magenta + "***Displaying Results Only***" + fg.rs)
+            # Resize/resample
+            # if cfg.height != ctx.orig_size.height or cfg.width != ctx.orig_size.width:
+            im = resize.resize_thumbnail(
+                im,
+                out_image_size,
+                #  bg_size=(cfg.width + 50, cfg.height + 50),
+                resample=Image.ANTIALIAS,
+            )
 
-    ctx.time_end = perf_counter()
-    print(*get_summary_report(cfg, ctx), sep="\n")
+
+    time_end = perf_counter()
+
+# def main():
+#     """Process image based on config file and command-line arguments."""
+#     time_start = perf_counter()
+#     argslist = parse_args(sys.argv[1:])
+#     # print(argslist)
+#     for args in argslist:
+#         print(args)
+#         cfg = Config.from_args(args)
+#         log_level = 0
+#         try:
+#             log_level = (0, 20, 10)[cfg.verbosity]
+#         except IndexError:
+#             log_level = 10
+#         loggers = [logging.getLogger(name) for name in logging.root.manager.loggerDict]
+#         # set level for all loggers
+#         for l in loggers:
+#             l.setLevel(log_level)
+#
+#         LOG.debug("Runtime config:\n%s", cfg)
+#         ctx = process_image(cfg)
+#         ctx.time_start = time_start
+#         exclude_ctx_attrs = ["image_buffer"]
+#         if cfg.verbosity < 3:
+#             exclude_ctx_attrs.append("orig_exif")
+#         LOG.debug(
+#             "Image Context:\n%s", ctx,
+#         )
+#
+#         if not cfg.no_op:
+#             if not ctx.image_buffer:
+#                 LOG.critical("Image buffer cannot be None")
+#                 raise ValueError("Image buffer is None")
+#             LOG.info("Saving buffer to %s", cfg.output_file)
+#
+#             # Create output dir if it doesn't exist
+#             out_path = Path(cfg.output_file)
+#             if out_path.exists():
+#                 # output file exists
+#                 if not cfg.force:
+#                     print(
+#                         fg.red
+#                         + ef.bold
+#                         + f"Error: file '{out_path}' exists; use -f option to force overwrite."
+#                         + rs.all,
+#                         file=sys.stderr,
+#                     )
+#                     return
+#             out_path.parent.mkdir(parents=True, exist_ok=True)
+#
+#             with out_path.open("wb") as f:
+#                 f.write(ctx.image_buffer)
+#         else:
+#             print(fg.li_magenta + "***Displaying Results Only***" + fg.rs)
+#
+#         ctx.time_end = perf_counter()
+#         print(*get_summary_report(cfg, ctx), sep="\n")
 
 
 def process_image(cfg: Config) -> Context:
@@ -166,7 +229,7 @@ def generate_rgb_histogram(im: Image, show_axes: bool = False) -> str:
         im: PIL Image object
         show_axes: Print x and y axes
 
-    Returns: String of histogram content for rgb image
+    Returns: String of histscalee
     """
     hist_width = 50
     hist_height = 10
