@@ -28,10 +28,10 @@ def main():
     """Process image based on cli args."""
     time_start = perf_counter()
 
-    argslist = parse_args(sys.argv[1:])
+    argslist, commands = parse_args(sys.argv[1:])
     log_level = 0
     try:
-        log_level = (0, 20, 10)[argslist[0].verbosity]
+        log_level = (0, 20, 10)[argslist.verbosity]
     except IndexError:
         log_level = 10
     loggers = [logging.getLogger(name) for name in logging.root.manager.loggerDict]
@@ -41,33 +41,42 @@ def main():
 
     # main vars
     im = None
-    in_image_size = ImageSize(0,0)
+    in_file_path = None
+    in_image_size = ImageSize(0, 0)
     in_file_size = 0
     in_dpi = 0
     in_exif = None
-    out_image_size = ImageSize(0,0)
+    out_file_path = None
+    out_image_size = ImageSize(0, 0)
+    out_file_size = 0
 
-    for args in argslist:
-        LOG.debug(f"{args=}")
+    for cmd in commands:
+        arg = getattr(argslist, cmd)
+        LOG.debug(f"{cmd}={arg}")
 
-        if args.command == 'open':
+        if cmd == "open":
             inbuf = BytesIO()
-            inbuf.write(args.input[0].read())
+            inbuf.write(arg.input.read())
             in_file_size = inbuf.tell()
             im = Image.open(inbuf)
-            in_image_size = ImageSize(im.size)
+            in_image_size = ImageSize(*im.size)
             LOG.info("Input dims: %s", in_image_size)
+            in_file_path = arg.input.name
             try:
-                exif = piexif.load(args.input[0].name)
+                exif = piexif.load(in_file_path)
                 del exif["thumbnail"]
                 in_exif = exif
             except KeyError:
                 pass
             in_dpi = im.info["dpi"]
             LOG.info("Input size: %s", humanize_bytes(in_file_size))
-        elif args.command == 'resize':
+            if arg.show_histogram:
+                print(generate_rgb_histogram(im))
+        elif cmd == "resize":
             new_size = resize.calculate_new_size(
-               in_image_size, args.scale, ImageSize(width=args.width, height=args.height)
+                in_image_size,
+                arg.scale,
+                ImageSize(width=arg.width, height=arg.height),
             )
             out_image_size = ImageSize(width=new_size.width, height=new_size.height)
 
@@ -79,11 +88,119 @@ def main():
                 #  bg_size=(cfg.width + 50, cfg.height + 50),
                 resample=Image.ANTIALIAS,
             )
+        elif cmd == "save":
+            use_progressive_jpg = in_file_size > 10000
+            if use_progressive_jpg:
+                LOG.debug("Large file; using progressive jpg")
 
+            # Exif
+            if arg.keep_exif:
+                exif = piexif.dump(piexif.load(in_file_path))
+            else:
+                exif = b""
+
+            outbuf = BytesIO()
+            im.save(
+                outbuf,
+                "JPEG",
+                quality=arg.jpg_quality,
+                dpi=in_dpi,
+                progressive=use_progressive_jpg,
+                optimize=True,
+                exif=exif,
+            )
+            image_buffer = outbuf.getvalue()
+
+            # convert back to image to get size
+            if image_buffer is None:
+                # img_out = Image.open(BytesIO(image_buffer))
+                # out_image_size = ImageSize(*img_out.size)
+                LOG.critical("Image buffer cannot be None")
+                raise ValueError("Image buffer is None")
+            else:
+                out_file_size = sys.getsizeof(image_buffer)
+                LOG.info("Output size: %s", humanize_bytes(out_file_size))
+
+            if arg.output is not None:
+                out_file_path = arg.output.name
+                LOG.info("Saving buffer to %s", arg.output.name)
+
+            # Create output dir if it doesn't exist
+            out_path = Path(out_file_path)
+            if out_path.exists():
+                # output file exists
+                if not arg.force:
+                    print(
+                        fg.red
+                        + ef.bold
+                        + f"Error: file '{out_path}' exists; use -f option to force overwrite."
+                        + rs.all,
+                        file=sys.stderr,
+                    )
+                    return
+            out_path.parent.mkdir(parents=True, exist_ok=True)
+
+            with out_path.open("wb") as f:
+                f.write(image_buffer)
 
     time_end = perf_counter()
+    size_reduction_bytes = in_file_size - out_file_size
+    report_title = " Processing Summary "
+    report_end = " End "
+    report_arrow = "->"
+    report = []
+    report.append(
+        [
+            "File Name:",
+            in_file_path,
+            report_arrow if out_file_path is not None else "",
+            out_file_path if out_file_path is not None else "",
+        ]
+    )
+    report.append(
+        ["File Dimensions:", str(in_image_size), report_arrow, str(out_image_size)]
+    )
+    report.append(
+        [
+            "File Size:",
+            humanize_bytes(in_file_size),
+            report_arrow,
+            humanize_bytes(out_file_size),
+        ]
+    )
+    report.append(
+        [
+            "Size Reduction:",
+            f"{humanize_bytes(size_reduction_bytes)} "
+            f"({(size_reduction_bytes/in_file_size) * 100:2.1f}%)",
+        ]
+    )
+    report.append(["Processing Time:", f"{(time_end - time_start)*1000:.1f} ms"])
+    for c in report:
+        for n in range(4):
+            try:
+                c[n] = c[n]
+            except IndexError:
+                c.append("")
+        c[2] = "" if c[3] == c[1] else c[2]
+        c[3] = "  " if c[3] == c[1] else c[3]
 
-# def main():
+    padding = 2
+    col0w = max([len(str(c[0])) for c in report]) + padding
+    col1w = max([len(str(c[1])) for c in report]) + padding
+    col2w = max([len(str(c[2])) for c in report]) + padding
+    col3w = max([len(str(c[3])) for c in report]) + padding
+    out = []
+    out.append(f"{report_title:{'-'}^{col0w + col1w + col2w + col3w + 1}}")
+    for line in report:
+        out.append(
+            f"{line[0]:<{col0w}} {line[1]:{col1w}} {line[2]:{col2w}} {line[3]:{col3w}}"
+        )
+    out.append(f"{report_end:{'-'}^{col0w + col1w + col2w + col3w + 1}}")
+    print(*out, sep="\n")
+
+
+# def main(): old main {{{
 #     """Process image based on config file and command-line arguments."""
 #     time_start = perf_counter()
 #     argslist = parse_args(sys.argv[1:])
@@ -139,6 +256,7 @@ def main():
 #
 #         ctx.time_end = perf_counter()
 #         print(*get_summary_report(cfg, ctx), sep="\n")
+# }}}
 
 
 def process_image(cfg: Config) -> Context:
@@ -150,7 +268,7 @@ def process_image(cfg: Config) -> Context:
         raise ValueError("input_file required")
     with open(cfg.input_file, "rb") as f:
         inbuf.write(f.read())
-    ctx.orig_file_size = inbuf.tell()
+    in_file_size = inbuf.tell()
     im = Image.open(inbuf)
     try:
         exif = piexif.load(cfg.input_file)
@@ -161,7 +279,7 @@ def process_image(cfg: Config) -> Context:
     ctx.orig_size.width, ctx.orig_size.height = im.size
     ctx.orig_dpi = im.info["dpi"]
     LOG.info("Input dims: %s", ctx.orig_size)
-    LOG.info("Input size: %s", humanize_bytes(ctx.orig_file_size))
+    LOG.info("Input size: %s", humanize_bytes(in_file_size))
 
     new_size = resize.calculate_new_size(
         ctx.orig_size, cfg.pct_scale, ImageSize(width=cfg.width, height=cfg.height)
@@ -190,7 +308,7 @@ def process_image(cfg: Config) -> Context:
     LOG.info("Image mode: %s", im.mode)
 
     # Save
-    use_progressive_jpg = ctx.orig_file_size > 10000
+    use_progressive_jpg = in_file_size > 10000
     if use_progressive_jpg:
         LOG.debug("Large file; using progressive jpg")
 
@@ -217,8 +335,8 @@ def process_image(cfg: Config) -> Context:
         if cfg.show_histogram:
             print(generate_rgb_histogram(im))
         ctx.new_size.width, ctx.new_size.height = img_out.size
-        ctx.new_file_size = sys.getsizeof(ctx.image_buffer)
-    LOG.info("Output size: %s", humanize_bytes(ctx.new_file_size))
+        out_file_size = sys.getsizeof(ctx.image_buffer)
+    LOG.info("Output size: %s", humanize_bytes(out_file_size))
     return ctx
 
 

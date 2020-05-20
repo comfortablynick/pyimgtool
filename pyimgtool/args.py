@@ -5,7 +5,7 @@ import logging
 import sys
 import textwrap
 from pathlib import Path
-from typing import List
+from typing import List, Tuple
 
 from pyimgtool.data_structures import Position
 from pyimgtool.version import __version__
@@ -13,13 +13,13 @@ from pyimgtool.version import __version__
 LOG = logging.getLogger(__name__)
 
 
-def parse_args(args: list) -> List[argparse.Namespace]:
+def parse_args(args: List[str]) -> Tuple[argparse.Namespace, List[str]]:
     """Parse command line arguments.
 
     Args:
         args: Command line arguments
 
-    Return: Argparse namespace of parsed arguments
+    Return: 2-tuple of Argparse namespace of parsed arguments and list of commands called
     """
     # flags
     desc = textwrap.dedent(
@@ -36,47 +36,31 @@ def parse_args(args: list) -> List[argparse.Namespace]:
         description=desc,
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
-
-    subparsers = parser.add_subparsers(
-        title="Commands",
-        dest="command",
-        description="image operations",
-        help="valid commands",
-        # metavar="<command>"
-    )
-
-    # input
-    open = subparsers.add_parser("open", help="open image for editing")
-    open.add_argument(
-        "input",
-        help="image file to process",
-        type=argparse.FileType(mode="rb"),
-        nargs=1,
-        metavar="INPUT_FILE",
-    )
-    open.add_argument(
-        "-V", "--version", action="version", version=f"%(prog)s {__version__}"
-    )
-    open.add_argument(
+    parser.add_argument(
         "-v",
         help="increase logging output to console",
         action="count",
         dest="verbosity",
         default=0,
     )
-    # parser.add_argument(
-    #     "-n",
-    #     "--noop",
-    #     help="display results only; don't save file",
-    #     dest="no_op",
-    #     action="store_true",
-    # )
-    open.add_argument(
+    parser.add_argument(
         "-Q",
         "--quiet",
         help="quiet debug log output to console (opposite of -v)",
         action="store_true",
         dest="quiet",
+    )
+    commands = parser.add_subparsers(
+        title="Commands", description="image operations", help="valid commands",
+    )
+
+    # input
+    open = commands.add_parser("open", help="open image for editing")
+    open.add_argument(
+        "input",
+        help="image file to process",
+        type=argparse.FileType(mode="rb"),
+        metavar="INPUT_FILE",
     )
     open.add_argument(
         "-H",
@@ -85,15 +69,14 @@ def parse_args(args: list) -> List[argparse.Namespace]:
         dest="show_histogram",
         action="store_true",
     )
+    open.add_argument(
+        "-V", "--version", action="version", version=f"%(prog)s {__version__}"
+    )
 
     # resize
-    resize = subparsers.add_parser("resize", help="resize image dimensions")
+    resize = commands.add_parser("resize", help="resize image dimensions")
     resize.add_argument(
-        "-s",
-        help="scale output size",
-        dest="scale",
-        metavar="SCALE",
-        type=lambda n: 0 < float(n) < 1 or parser.error("resize scale must be between 0 and 1"),
+        "-s", help="scale output size", dest="scale", metavar="SCALE", type=float,
     )
     resize.add_argument(
         "-mw",
@@ -121,7 +104,7 @@ def parse_args(args: list) -> List[argparse.Namespace]:
     )
 
     # Watermark
-    watermark = subparsers.add_parser("watermark", help="add watermark to image")
+    watermark = commands.add_parser("watermark", help="add watermark to image")
     watermark.add_argument(
         "-i",
         help="image file to use as watermark",
@@ -160,11 +143,12 @@ def parse_args(args: list) -> List[argparse.Namespace]:
         dest="watermark_scale",
         metavar="SCALE",
         default=0.2,
-        type=lambda n: 0 < float(n) < 1 or parser.error("watermark scale must be between 0 and 1"),
+        type=lambda n: 0 < float(n) < 1
+        or parser.error("watermark scale must be between 0 and 1"),
     )
 
     # Text
-    text = subparsers.add_parser("text", help="add text to image")
+    text = commands.add_parser("text", help="add text to image")
     text.add_argument(
         "-t", help="text to display on image", dest="text", metavar="TEXT", type=str
     )
@@ -206,10 +190,11 @@ def parse_args(args: list) -> List[argparse.Namespace]:
         dest="text_scale",
         metavar="SCALE",
         default=0.20,
-        type=lambda n: 0 < float(n) < 1 or parser.error("text scale must be between 0 and 1"),
+        type=lambda n: 0 < float(n) < 1
+        or parser.error("text scale must be between 0 and 1"),
     )
 
-    save = subparsers.add_parser("save", help="save edited file to disk")
+    save = commands.add_parser("save", help="save edited file to disk")
     save.add_argument(
         "output",
         help="file to save processed image",
@@ -224,7 +209,18 @@ def parse_args(args: list) -> List[argparse.Namespace]:
         action="store_true",
     )
     save.add_argument(
-        "-k", help="keep exif data if possible", dest="keep_exif", action="store_true"
+        "-k",
+        "--keep-exif",
+        help="keep exif data if possible",
+        dest="keep_exif",
+        action="store_true",
+    )
+    save.add_argument(
+        "-n",
+        "--noop",
+        help="display results only; don't save file",
+        dest="no_op",
+        action="store_true",
     )
     save.add_argument(
         "-q",
@@ -248,30 +244,38 @@ def parse_args(args: list) -> List[argparse.Namespace]:
         parser._positionals.title = "Arguments"
     if parser._optionals.title is not None:
         parser._optionals.title = "Options"
-    namespaces = []
+
     if not args:
         print("error: arguments required", file=sys.stderr)
         parser.print_usage(file=sys.stderr)
         sys.exit(1)
-    while args:
-        parsed, args = parser.parse_known_args(args)
-        namespaces.append(parsed)
 
-    # do basic validation
-    if namespaces[0].command != "open":
-        print("error: open command must be called first", file=sys.stderr)
-        sys.exit(1)
-    if namespaces[0].quiet > 0:
-        namespaces[0].verbosity = 0
+    # split argv by known commands and parse
+    split_argv: List[List] = [[]]
+    commands_found = []
+    for c in sys.argv[1:]:
+        if c in commands.choices:
+            commands_found.append(c)
+            if c == "-h" and len(split_argv) >= 1:
+                split_argv[-1].append(c)
+            else:
+                split_argv.append([c])
+        else:
+            split_argv[-1].append(c)
+    # Initialize namespace
+    ns = argparse.Namespace()
+    for c in commands.choices:
+        setattr(ns, c, None)
+    # Parse each command
+    if len(split_argv) == 0:
+        split_argv.append(["-h"])  # if no command was given
+    parser.parse_args(split_argv[0], namespace=ns)  # Without command
+    for argv in split_argv[1:]:  # Commands
+        n = argparse.Namespace()
+        setattr(ns, argv[0], n)
+        parser.parse_args(argv, namespace=n)
 
-    # if not 0 <= parsed.jpg_quality <= 100:
-    #     parser.error(f"Quality (-q) must be within 0-100; found: {parsed.jpg_quality}")
-
-    # if parsed.pct_scale and (parsed.width or parsed.height):
-    #     parser.error("Can use either -p or -mw/-mh, not both")
-    # if not 0 <= parsed.watermark_scale <= 1:
-    #     parser.error("Value out of bounds: -ws must be between 0 and 1")
-    #
-    # if parsed.text is not None and parsed.text_copyright is not None:
-    #     parser.error("Can use either -t or -c, not both")
-    return namespaces
+    # basic validation
+    if ns.quiet > 0:
+        ns.verbosity = 0
+    return ns, commands_found

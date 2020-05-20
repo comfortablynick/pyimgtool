@@ -208,7 +208,7 @@ def resize_height(image: Image, size: Tuple[int, int], resample=Image.LANCZOS) -
 
 
 def resize_thumbnail(
-    image: Image, size: Tuple[int, int], resample=Image.LANCZOS
+        image: Image, size: ImageSize, resample=Image.LANCZOS
 ) -> Image:
     """Resize image to according to specified size.
 
@@ -216,14 +216,14 @@ def resize_thumbnail(
 
     Args:
         image: Pillow image instance
-        size: 2-Tuple of dimension integers
+        size: ImageSize object of desired size
         resample: Resample method
 
     Returns: PIL Image
     """
     img_format = image.format
     img = image.copy()
-    img.thumbnail((size[0], size[1]), resample)
+    img.thumbnail((size.width, size.height), resample)
     img.format = img_format
     return img
 
@@ -262,7 +262,7 @@ def calculate_new_size(
     calc_size = ImageSize()
     # TODO: add support for longest_dim and shortest_dim
     if scale is not None and scale > 0.0:
-        LOG.info("Scaling image by %.1f%%", scale)
+        LOG.info("Scaling image by %f", scale)
         calc_size.width = int(round(orig_size.width * scale))
         calc_size.height = int(round(orig_size.height * scale))
         return calc_size
