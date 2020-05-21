@@ -18,7 +18,7 @@ from sty import ef, fg, rs
 from pyimgtool.args import parse_args
 from pyimgtool.commands import resize, watermark
 from pyimgtool.data_structures import Config, Context, ImageSize
-from pyimgtool.utils import get_summary_report, humanize_bytes
+from pyimgtool.utils import humanize_bytes
 
 logging.basicConfig(level=logging.WARNING)
 LOG = logging.getLogger(__name__)
@@ -28,7 +28,7 @@ def main():
     """Process image based on cli args."""
     time_start = perf_counter()
 
-    argslist, commands = parse_args(sys.argv[1:])
+    argslist = parse_args(sys.argv[1:])
     log_level = 0
     try:
         log_level = (0, 20, 10)[argslist.verbosity]
@@ -50,7 +50,7 @@ def main():
     out_image_size = ImageSize(0, 0)
     out_file_size = 0
 
-    for cmd in commands:
+    for cmd in argslist._order:
         arg = getattr(argslist, cmd)
         LOG.debug(f"{cmd}={arg}")
 
@@ -81,7 +81,6 @@ def main():
             out_image_size = ImageSize(width=new_size.width, height=new_size.height)
 
             # Resize/resample
-            # if cfg.height != ctx.orig_size.height or cfg.width != ctx.orig_size.width:
             im = resize.resize_thumbnail(
                 im,
                 out_image_size,

@@ -13,7 +13,36 @@ from pyimgtool.version import __version__
 LOG = logging.getLogger(__name__)
 
 
-def parse_args(args: List[str]) -> Tuple[argparse.Namespace, List[str]]:
+class OrderedNamespace(argparse.Namespace):
+    """Namespace that retains calling order of subparsers."""
+
+    def __init__(self, commands, **kwargs):
+        """Pass possible commands to namespace.
+        
+        Args:
+            commands: Subparsers containing commands to parse
+        """
+        self.__dict__["_order"] = []
+        self._commands = [*commands.choices]
+        super().__init__(**kwargs)
+
+    def __setattr__(self, attr, value):
+        """Set order of commands called."""
+        super().__setattr__(attr, value)
+        if attr in self._commands:
+            if attr in self._order:
+                self.__dict__["_order"].clear()
+            self.__dict__["_order"].append(attr)
+
+    def ordered(self):
+        """Return namespace in order.
+
+        Yield: Command namespace in the order called
+        """
+        return ((attr, getattr(self, attr)) for attr in self._order)
+
+
+def parse_args(args: List[str]) -> OrderedNamespace:
     """Parse command line arguments.
 
     Args:
@@ -250,6 +279,7 @@ def parse_args(args: List[str]) -> Tuple[argparse.Namespace, List[str]]:
         parser.print_usage(file=sys.stderr)
         sys.exit(1)
 
+    # opts = parser._optionals
     # split argv by known commands and parse
     split_argv: List[List] = [[]]
     commands_found = []
@@ -263,7 +293,7 @@ def parse_args(args: List[str]) -> Tuple[argparse.Namespace, List[str]]:
         else:
             split_argv[-1].append(c)
     # Initialize namespace
-    ns = argparse.Namespace()
+    ns = OrderedNamespace(commands)
     for c in commands.choices:
         setattr(ns, c, None)
     # Parse each command
@@ -274,8 +304,8 @@ def parse_args(args: List[str]) -> Tuple[argparse.Namespace, List[str]]:
         n = argparse.Namespace()
         setattr(ns, argv[0], n)
         parser.parse_args(argv, namespace=n)
-
     # basic validation
+    print(ns)
     if ns.quiet > 0:
         ns.verbosity = 0
-    return ns, commands_found
+    return ns
