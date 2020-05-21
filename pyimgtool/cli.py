@@ -5,8 +5,9 @@ import os
 import sys
 from io import BytesIO
 from pathlib import Path
+from pprint import pformat
 from time import perf_counter
-from typing import Optional
+from typing import Dict, Optional
 
 import cv2
 import numpy as np
@@ -17,7 +18,7 @@ from sty import ef, fg, rs
 
 from pyimgtool.args import parse_args
 from pyimgtool.commands import resize, watermark
-from pyimgtool.data_structures import Config, Context, ImageSize
+from pyimgtool.data_structures import ImageSize
 from pyimgtool.utils import humanize_bytes
 
 logging.basicConfig(level=logging.WARNING)
@@ -28,10 +29,11 @@ def main():
     """Process image based on cli args."""
     time_start = perf_counter()
 
-    argslist = parse_args(sys.argv[1:])
+    args = parse_args(sys.argv[1:]).ordered()
+    _, opts = next(args)
     log_level = 0
     try:
-        log_level = (0, 20, 10)[argslist.verbosity]
+        log_level = (0, 20, 10)[opts.verbosity]
     except IndexError:
         log_level = 10
     loggers = [logging.getLogger(name) for name in logging.root.manager.loggerDict]
@@ -39,33 +41,35 @@ def main():
     for l in loggers:
         l.setLevel(log_level)
 
+    LOG.debug("Program opts:\n%s", pformat(vars(opts)))
+
     # main vars
-    im = None
-    in_file_path = None
+    im: Image = None
+    in_file_path: str = None
     in_image_size = ImageSize(0, 0)
     in_file_size = 0
     in_dpi = 0
-    in_exif = None
+    in_exif: Optional[Dict] = None
     out_file_path = None
     out_image_size = ImageSize(0, 0)
     out_file_size = 0
 
-    for cmd in argslist._order:
-        arg = getattr(argslist, cmd)
-        LOG.debug(f"{cmd}={arg}")
+    for cmd, arg in args:
+        LOG.debug("Processing command %s with args:\n%s", cmd, pformat(vars(arg)))
 
         if cmd == "open":
             inbuf = BytesIO()
             inbuf.write(arg.input.read())
             in_file_size = inbuf.tell()
             im = Image.open(inbuf)
+            assert im is not None
+
             in_image_size = ImageSize(*im.size)
             LOG.info("Input dims: %s", in_image_size)
             in_file_path = arg.input.name
             try:
-                exif = piexif.load(in_file_path)
-                del exif["thumbnail"]
-                in_exif = exif
+                in_exif = piexif.load(in_file_path)
+                # del in_exif["thumbnail"]
             except KeyError:
                 pass
             in_dpi = im.info["dpi"]
@@ -74,9 +78,7 @@ def main():
                 print(generate_rgb_histogram(im))
         elif cmd == "resize":
             new_size = resize.calculate_new_size(
-                in_image_size,
-                arg.scale,
-                ImageSize(width=arg.width, height=arg.height),
+                in_image_size, arg.scale, ImageSize(width=arg.width, height=arg.height),
             )
             out_image_size = ImageSize(width=new_size.width, height=new_size.height)
 
@@ -86,6 +88,15 @@ def main():
                 out_image_size,
                 #  bg_size=(cfg.width + 50, cfg.height + 50),
                 resample=Image.ANTIALIAS,
+            )
+        elif cmd == "text":
+            im = watermark.with_text(
+                im,
+                text=arg.text,
+                copyright=arg.copyright,
+                scale=arg.scale,
+                opacity=arg.opacity,
+                exif=in_exif,
             )
         elif cmd == "save":
             use_progressive_jpg = in_file_size > 10000
@@ -124,23 +135,22 @@ def main():
                 out_file_path = arg.output.name
                 LOG.info("Saving buffer to %s", arg.output.name)
 
-            # Create output dir if it doesn't exist
-            out_path = Path(out_file_path)
-            if out_path.exists():
-                # output file exists
+            if (out_path := Path(out_file_path)).exists():
                 if not arg.force:
+                    LOG.critical(
+                        "file '%s' exists and force argument not found", out_path
+                    )
                     print(
-                        fg.red
-                        + ef.bold
-                        + f"Error: file '{out_path}' exists; use -f option to force overwrite."
-                        + rs.all,
+                        f"{fg.red}{ef.bold}Error: file '{out_path}' exists;",
+                        f" use -f option to force overwrite.{rs.all}",
                         file=sys.stderr,
                     )
                     return
-            out_path.parent.mkdir(parents=True, exist_ok=True)
+                # Create output dir if it doesn't exist
+                out_path.parent.mkdir(parents=True, exist_ok=True)
 
-            with out_path.open("wb") as f:
-                f.write(image_buffer)
+                with out_path.open("wb") as f:
+                    f.write(image_buffer)
 
     time_end = perf_counter()
     size_reduction_bytes = in_file_size - out_file_size
@@ -197,146 +207,6 @@ def main():
         )
     out.append(f"{report_end:{'-'}^{col0w + col1w + col2w + col3w + 1}}")
     print(*out, sep="\n")
-
-
-# def main(): old main {{{
-#     """Process image based on config file and command-line arguments."""
-#     time_start = perf_counter()
-#     argslist = parse_args(sys.argv[1:])
-#     # print(argslist)
-#     for args in argslist:
-#         print(args)
-#         cfg = Config.from_args(args)
-#         log_level = 0
-#         try:
-#             log_level = (0, 20, 10)[cfg.verbosity]
-#         except IndexError:
-#             log_level = 10
-#         loggers = [logging.getLogger(name) for name in logging.root.manager.loggerDict]
-#         # set level for all loggers
-#         for l in loggers:
-#             l.setLevel(log_level)
-#
-#         LOG.debug("Runtime config:\n%s", cfg)
-#         ctx = process_image(cfg)
-#         ctx.time_start = time_start
-#         exclude_ctx_attrs = ["image_buffer"]
-#         if cfg.verbosity < 3:
-#             exclude_ctx_attrs.append("orig_exif")
-#         LOG.debug(
-#             "Image Context:\n%s", ctx,
-#         )
-#
-#         if not cfg.no_op:
-#             if not ctx.image_buffer:
-#                 LOG.critical("Image buffer cannot be None")
-#                 raise ValueError("Image buffer is None")
-#             LOG.info("Saving buffer to %s", cfg.output_file)
-#
-#             # Create output dir if it doesn't exist
-#             out_path = Path(cfg.output_file)
-#             if out_path.exists():
-#                 # output file exists
-#                 if not cfg.force:
-#                     print(
-#                         fg.red
-#                         + ef.bold
-#                         + f"Error: file '{out_path}' exists; use -f option to force overwrite."
-#                         + rs.all,
-#                         file=sys.stderr,
-#                     )
-#                     return
-#             out_path.parent.mkdir(parents=True, exist_ok=True)
-#
-#             with out_path.open("wb") as f:
-#                 f.write(ctx.image_buffer)
-#         else:
-#             print(fg.li_magenta + "***Displaying Results Only***" + fg.rs)
-#
-#         ctx.time_end = perf_counter()
-#         print(*get_summary_report(cfg, ctx), sep="\n")
-# }}}
-
-
-def process_image(cfg: Config) -> Context:
-    """Process image according to options in `cfg`."""
-    ctx = Context()
-    inbuf = BytesIO()
-    outbuf = BytesIO()
-    if not cfg.input_file:
-        raise ValueError("input_file required")
-    with open(cfg.input_file, "rb") as f:
-        inbuf.write(f.read())
-    in_file_size = inbuf.tell()
-    im = Image.open(inbuf)
-    try:
-        exif = piexif.load(cfg.input_file)
-        del exif["thumbnail"]
-        ctx.orig_exif = exif
-    except KeyError:
-        pass
-    ctx.orig_size.width, ctx.orig_size.height = im.size
-    ctx.orig_dpi = im.info["dpi"]
-    LOG.info("Input dims: %s", ctx.orig_size)
-    LOG.info("Input size: %s", humanize_bytes(in_file_size))
-
-    new_size = resize.calculate_new_size(
-        ctx.orig_size, cfg.pct_scale, ImageSize(width=cfg.width, height=cfg.height)
-    )
-    cfg.width = new_size.width
-    cfg.height = new_size.height
-
-    # Resize/resample
-    if cfg.height != ctx.orig_size.height or cfg.width != ctx.orig_size.width:
-        im = resize.resize_thumbnail(
-            im,
-            (cfg.width, cfg.height),
-            #  bg_size=(cfg.width + 50, cfg.height + 50),
-            resample=Image.ANTIALIAS,
-        )
-
-    if cfg.watermark_image is not None:
-        im = watermark.with_image(im, cfg, ctx)
-    if cfg.text is not None or cfg.text_copyright is not None:
-        im = watermark.with_text(im, cfg, ctx)
-
-    try:
-        ctx.new_dpi = im.info["dpi"]
-    except KeyError:
-        pass
-    LOG.info("Image mode: %s", im.mode)
-
-    # Save
-    use_progressive_jpg = in_file_size > 10000
-    if use_progressive_jpg:
-        LOG.debug("Large file; using progressive jpg")
-
-    # Exif
-    if cfg.keep_exif:
-        exif = piexif.dump(piexif.load(cfg.input_file))
-    else:
-        exif = b""
-
-    im.save(
-        outbuf,
-        "JPEG",
-        quality=cfg.jpg_quality,
-        dpi=ctx.orig_dpi,
-        progressive=use_progressive_jpg,
-        optimize=True,
-        exif=exif,
-    )
-    ctx.image_buffer = outbuf.getvalue()
-
-    # convert back to image to get size
-    if ctx.image_buffer:
-        img_out = Image.open(BytesIO(ctx.image_buffer))
-        if cfg.show_histogram:
-            print(generate_rgb_histogram(im))
-        ctx.new_size.width, ctx.new_size.height = img_out.size
-        out_file_size = sys.getsizeof(ctx.image_buffer)
-    LOG.info("Output size: %s", humanize_bytes(out_file_size))
-    return ctx
 
 
 def generate_rgb_histogram(im: Image, show_axes: bool = False) -> str:

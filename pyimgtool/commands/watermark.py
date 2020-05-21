@@ -4,12 +4,13 @@ import logging
 import os
 from datetime import datetime
 from pathlib import PurePath
+from typing import Dict, Optional
 
 from PIL import Image, ImageDraw, ImageFont, ImageStat
 
+from pyimgtool.commands.resize import resize_height
 from pyimgtool.data_structures import Config, Context, ImageSize, Position
 from pyimgtool.utils import get_pkg_root
-from pyimgtool.commands.resize import resize_height
 
 LOG = logging.getLogger(__name__)
 
@@ -96,27 +97,26 @@ def find_best_location(im: Image, size: ImageSize, padding: float) -> Position:
     return locations[index]
 
 
-def add_copyright_date(im: Image, cfg: Config, ctx: Context) -> None:
+def get_copyright_string(im: Image, text_copyright, exif: Optional[Dict] = None) -> str:
     """Extract date taken from photo to add to copyright text.
 
     Args:
         im: PIL Image
-        cfg: Config object
-        ctx: Context object
+        text_copyright: Copyright text
+        exif: Dictionary of exif data
     """
     photo_dt = datetime.now()
-    if ctx.orig_exif is not None:
+    if exif is not None:
         try:
             photo_dt = datetime.strptime(
-                ctx.orig_exif["Exif"]["DateTimeOriginal"].decode("utf-8"),
-                "%Y:%m:%d %H:%M:%S",
+                exif["Exif"]["DateTimeOriginal"].decode("utf-8"), "%Y:%m:%d %H:%M:%S",
             )
         except KeyError:
             pass
     copyright_year = photo_dt.strftime("%Y")
-    cfg.text = f"© {copyright_year} {cfg.text_copyright}"
-    LOG.info("Using copyright text: %s", cfg.text)
+    LOG.info("Using copyright text: %s", text_copyright)
     LOG.info("Photo date from exif: %s", photo_dt)
+    return f"© {copyright_year} {text_copyright}"
 
 
 def with_image(im: Image, cfg: Config, ctx: Context) -> Image:
@@ -163,7 +163,15 @@ def with_image(im: Image, cfg: Config, ctx: Context) -> Image:
     return im
 
 
-def with_text(im: Image, cfg: Config, ctx: Context) -> Image:
+def with_text(
+    im: Image,
+    text: str = None,
+    copyright: str = None,
+    scale: float = 0.2,
+    opacity: float = 0.3,
+    padding: int = 10,
+    exif: dict = None,
+) -> Image:
     """Watermark with text if program option is supplied.
 
     If text is equal to 'copyright', the exif data will be read
@@ -172,42 +180,48 @@ def with_text(im: Image, cfg: Config, ctx: Context) -> Image:
 
     Args:
         im: PIL Image
-        cfg: Config object
-        ctx: Context object
+        text: General text to add to image
+        copyright: Text for copyright
+        scale: Scale for size of text relative to image
+        opacity: Text layer opacity from 0 to 1
+        padding: Pixels of padding for text
+        exif: Image metadata
 
     Return: Watermarked image
     """
-    if cfg.text is None and cfg.text_copyright is None:
-        LOG.error("Missing text or copyright text in cfg")
+    if text is None and copyright is None:
+        LOG.error("Need either text or copyright text")
         return im
-    if cfg.text_copyright is not None:
+    if copyright is not None:
         # Add date photo taken to copyright text
-        add_copyright_date(im, cfg, ctx)
+        text = get_copyright_string(im, copyright, exif)
     layer = Image.new("RGBA", (im.width, im.height), (255, 255, 255, 0))
 
     font_size = 1  # starting size
-    offset_x = cfg.text_padding
-    offset_y = cfg.text_padding
+    offset_x = padding
+    offset_y = padding
 
     try:
         # cwd = PurePath(os.path.dirname(__file__))
-        font_path = str(PurePath.joinpath(get_pkg_root(), "fonts", "SourceSansPro-Regular.ttf"))
+        font_path = str(
+            PurePath.joinpath(get_pkg_root(), "fonts", "SourceSansPro-Regular.ttf")
+        )
         font = ImageFont.truetype(font=font_path, size=font_size)
     except OSError:
         LOG.error("Could not find font '%s', aborting text watermark", font_path)
         return im
 
     LOG.debug("Found font '%s'", font_path)
-    while font.getsize(cfg.text)[0] < cfg.text_scale * im.width:
+    while font.getsize(text)[0] < scale * im.width:
         # iterate until text size is >= text_scale
         font_size += 1
         font = ImageFont.truetype(font=font_path, size=font_size)
 
-    if font.getsize(cfg.text)[0] > cfg.text_scale * im.width:
+    if font.getsize(text)[0] > scale * im.width:
         font_size -= 1
         font = ImageFont.truetype(font=font_path, size=font_size)
 
-    text_width, text_height = font.getsize(cfg.text)
+    text_width, text_height = font.getsize(text)
     LOG.debug(
         "Final text dims: %d x %d px; Font size: %d", text_width, text_height, font_size
     )
@@ -218,13 +232,12 @@ def with_text(im: Image, cfg: Config, ctx: Context) -> Image:
     LOG.debug("Region luminance: %f", stats.mean[0])
     LOG.debug("Region luminance stddev: %f", stats.stddev[0])
     d = ImageDraw.Draw(layer)
-    opacity = int(round((cfg.text_opacity * 255)))
+    opacity = int(round((opacity * 255)))
     LOG.info("Text opacity: %d/255", opacity)
-
     text_fill = 255, 255, 255, opacity
     if stats.mean[0] / 256 >= 0.5:
         text_fill = 0, 0, 0, opacity
 
-    d.text((offset_x, offset_y), cfg.text, font=font, fill=text_fill)
+    d.text((offset_x, offset_y), text, font=font, fill=text_fill)
     out = Image.alpha_composite(im.convert("RGBA"), layer)
     return out.convert("RGB")
