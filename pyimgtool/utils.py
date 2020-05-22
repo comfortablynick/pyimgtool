@@ -1,4 +1,5 @@
 """Helper functions."""
+import re
 from pathlib import PurePath
 from typing import List
 
@@ -6,6 +7,18 @@ from typing import List
 def get_pkg_root() -> PurePath:
     """Return package root folder."""
     return PurePath(__file__).parent
+
+
+def escape_ansi(line: str) -> str:
+    """Remove ANSI escape sequences from string.
+
+    Args:
+        line: String with ansi sequences
+
+    Returns: String with ansi sequences stripped
+    """
+    ansi_escape = re.compile(r"(?:\x1B[@-_]|[\x80-\x9F])[0-?]*[ -/]*[@-~]")
+    return ansi_escape.sub("", line)
 
 
 def humanize_bytes(

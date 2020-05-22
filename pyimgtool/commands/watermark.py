@@ -9,7 +9,7 @@ from typing import Dict, Optional
 from PIL import Image, ImageDraw, ImageFont, ImageStat
 
 from pyimgtool.commands.resize import resize_height
-from pyimgtool.data_structures import Config, Context, ImageSize, Position
+from pyimgtool.data_structures import ImageSize, Position
 from pyimgtool.utils import get_pkg_root
 
 LOG = logging.getLogger(__name__)
@@ -107,6 +107,7 @@ def get_copyright_string(im: Image, text_copyright, exif: Optional[Dict] = None)
     """
     photo_dt = datetime.now()
     if exif is not None:
+        LOG.debug("Exif data: %s", exif["Exif"])
         try:
             photo_dt = datetime.strptime(
                 exif["Exif"]["DateTimeOriginal"].decode("utf-8"), "%Y:%m:%d %H:%M:%S",
@@ -119,45 +120,47 @@ def get_copyright_string(im: Image, text_copyright, exif: Optional[Dict] = None)
     return f"© {copyright_year} {text_copyright}"
 
 
-def with_image(im: Image, cfg: Config, ctx: Context) -> Image:
+def with_image(
+    im: Image,
+    watermark_image: Image,
+    scale: float = 0.2,
+    position: Position = None,
+    opacity: float = 0.3,
+    padding: int = 10,
+) -> Image:
     """Watermark with image according to Config.
 
     Args:
         im: PIL Image
-        cfg: Config object
-        ctx: Context object
+        watermark_image: PIL Image
+        scale: Scale for watermark relative to image
+        position: Position of watermark
+        opacity: Watermark layer opacity from 0 to 1
+        padding: Pixels of padding for watermark
 
     Returns: Watermarked image
     """
-    if cfg.watermark_image is None:
-        LOG.error("Missing watermark_image in cfg")
-        return im
-    watermark_image = Image.open(os.path.expanduser(cfg.watermark_image)).convert(
-        "RGBA"
-    )
+    watermark_image = watermark_image.convert("RGBA")
     LOG.info("Watermark: %s", watermark_image.size)
     watermark_ratio = watermark_image.height / im.height
     LOG.info("Watermark size ratio: %.4f", watermark_ratio)
-    if watermark_ratio > cfg.watermark_scale:
+    if watermark_ratio > scale:
         LOG.debug(
-            "Resizing watermark from %.4f to %.4f scale",
-            watermark_ratio,
-            cfg.watermark_scale,
+            "Resizing watermark from %.4f to %.4f scale", watermark_ratio, scale,
         )
         watermark_image = resize_height(
-            watermark_image,
-            (int(im.width * cfg.watermark_scale), int(im.height * cfg.watermark_scale)),
+            watermark_image, (int(im.width * scale), int(im.height * scale)),
         )
         LOG.debug("New watermark dims: %s", watermark_image.size)
-    offset_x = cfg.watermark_padding
-    offset_y = cfg.watermark_padding
-    ctx.watermark_size = ImageSize(watermark_image.width, watermark_image.height)
-    mask = watermark_image.split()[3].point(lambda i: i * cfg.watermark_opacity)
+    offset_x = padding
+    offset_y = padding
+    watermark_size = ImageSize(watermark_image.width, watermark_image.height)
+    mask = watermark_image.split()[3].point(lambda i: i * opacity)
     pos = (
         (im.width - watermark_image.width - offset_x),
         (im.height - watermark_image.height - offset_y),
     )
-    loc = find_best_location(im, ctx.watermark_size, 0.05)
+    loc = find_best_location(im, watermark_size, 0.05)
     LOG.debug("Best detected watermark loc: %s", loc)
     im.paste(watermark_image, pos, mask)
     return im
@@ -168,6 +171,7 @@ def with_text(
     text: str = None,
     copyright: str = None,
     scale: float = 0.2,
+    position: Position = None,
     opacity: float = 0.3,
     padding: int = 10,
     exif: dict = None,
@@ -183,6 +187,7 @@ def with_text(
         text: General text to add to image
         copyright: Text for copyright
         scale: Scale for size of text relative to image
+        position: Text position in image
         opacity: Text layer opacity from 0 to 1
         padding: Pixels of padding for text
         exif: Image metadata
@@ -202,7 +207,6 @@ def with_text(
     offset_y = padding
 
     try:
-        # cwd = PurePath(os.path.dirname(__file__))
         font_path = str(
             PurePath.joinpath(get_pkg_root(), "fonts", "SourceSansPro-Regular.ttf")
         )

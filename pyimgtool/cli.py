@@ -19,7 +19,7 @@ from sty import ef, fg, rs
 from pyimgtool.args import parse_args
 from pyimgtool.commands import resize, watermark
 from pyimgtool.data_structures import ImageSize
-from pyimgtool.utils import humanize_bytes
+from pyimgtool.utils import humanize_bytes, escape_ansi
 
 logging.basicConfig(level=logging.WARNING)
 LOG = logging.getLogger(__name__)
@@ -53,6 +53,7 @@ def main():
     out_file_path = None
     out_image_size = ImageSize(0, 0)
     out_file_size = 0
+    no_op = False
 
     for cmd, arg in args:
         LOG.debug("Processing command %s with args:\n%s", cmd, pformat(vars(arg)))
@@ -95,8 +96,17 @@ def main():
                 text=arg.text,
                 copyright=arg.copyright,
                 scale=arg.scale,
+                position=arg.position,
                 opacity=arg.opacity,
                 exif=in_exif,
+            )
+        elif cmd == "watermark":
+            im = watermark.with_image(
+                im,
+                Image.open(arg.image),
+                scale=arg.scale,
+                position=arg.position,
+                opacity=arg.opacity,
             )
         elif cmd == "save":
             use_progressive_jpg = in_file_size > 10000
@@ -119,22 +129,17 @@ def main():
                 optimize=True,
                 exif=exif,
             )
-            image_buffer = outbuf.getvalue()
-
-            # convert back to image to get size
-            if image_buffer is None:
-                # img_out = Image.open(BytesIO(image_buffer))
-                # out_image_size = ImageSize(*img_out.size)
-                LOG.critical("Image buffer cannot be None")
-                raise ValueError("Image buffer is None")
-            else:
-                out_file_size = sys.getsizeof(image_buffer)
-                LOG.info("Output size: %s", humanize_bytes(out_file_size))
+            image_buffer = outbuf.getbuffer()
+            out_file_size = image_buffer.nbytes
+            LOG.info("Output size: %s", humanize_bytes(out_file_size))
 
             if arg.output is not None:
                 out_file_path = arg.output.name
                 LOG.info("Saving buffer to %s", arg.output.name)
 
+            if arg.no_op:
+                no_op = True
+                continue
             if (out_path := Path(out_file_path)).exists():
                 if not arg.force:
                     LOG.critical(
@@ -154,6 +159,8 @@ def main():
 
     time_end = perf_counter()
     size_reduction_bytes = in_file_size - out_file_size
+    no_op_msg = f" **Image not saved due to -n flag; reporting only** "
+    # no_op_msg = " **Image not saved due to -n flag; reporting only** "
     report_title = " Processing Summary "
     report_end = " End "
     report_arrow = "->"
@@ -200,12 +207,14 @@ def main():
     col2w = max([len(str(c[2])) for c in report]) + padding
     col3w = max([len(str(c[3])) for c in report]) + padding
     out = []
-    out.append(f"{report_title:{'-'}^{col0w + col1w + col2w + col3w + 1}}")
+    out.append(f"{ef.b}{report_title:{'-'}^{col0w + col1w + col2w + col3w + 1}}{rs.all}")
+    if no_op:
+        out.append(f"{fg.li_cyan}{ef.b}{no_op_msg:^{col0w + col1w + col2w + col3w + 1}}{rs.all}")
     for line in report:
         out.append(
-            f"{line[0]:<{col0w}} {line[1]:{col1w}} {line[2]:{col2w}} {line[3]:{col3w}}"
+            f"{line[0]:<{col0w}}{rs.all} {line[1]:{col1w}} {line[2]:{col2w}} {ef.i}{line[3]:{col3w}}{rs.all}"
         )
-    out.append(f"{report_end:{'-'}^{col0w + col1w + col2w + col3w + 1}}")
+    out.append(f"{ef.b}{report_end:{'-'}^{col0w + col1w + col2w + col3w + 1}}{rs.all}")
     print(*out, sep="\n")
 
 

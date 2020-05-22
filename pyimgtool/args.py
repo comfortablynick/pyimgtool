@@ -4,13 +4,51 @@ import argparse
 import logging
 import sys
 import textwrap
-from pathlib import Path
-from typing import List, Tuple
+from shutil import get_terminal_size
+from typing import List
 
 from pyimgtool.data_structures import Position
 from pyimgtool.version import __version__
 
 LOG = logging.getLogger(__name__)
+
+
+class CustomFormatter(argparse.RawTextHelpFormatter):
+    """Format help messages to custom spec."""
+
+    def __init__(self, prog):
+        """Override formatter defaults."""
+        max_width = min(100, get_terminal_size()[0])
+        # TODO: get all help items and set max_width based on longest (or term width)
+        # max_help_position >= max(len(param.name)+len(param.metavar) for param in params)
+        super(CustomFormatter, self).__init__(
+            prog, max_help_position=max_width, width=max_width
+        )
+        self._max_help_position = max_width
+        self._action_max_length += 4
+
+    def _format_action_invocation(self, action):
+        if not action.option_strings:
+            (metavar,) = self._metavar_formatter(action, action.dest)(1)
+            return metavar
+        else:
+            parts = []
+            # if the Optional doesn't take a value, format is:
+            #    -s, --long
+            if action.nargs == 0:
+                parts.extend(action.option_strings)
+
+            # if the Optional takes a value, format is:
+            #    -s ARGS, --long ARGS
+            # change to
+            #    -s, --long ARGS
+            else:
+                default = action.dest.upper()
+                args_string = self._format_args(action, default)
+                for option_string in action.option_strings:
+                    parts.append("%s" % option_string)
+                parts[-1] += " <%s>" % args_string
+            return ", ".join(parts)
 
 
 class OrderedNamespace(argparse.Namespace):
@@ -61,9 +99,7 @@ def parse_args(args: List[str]) -> OrderedNamespace:
         quality levels. Watermarking can also be added.
         """
     )
-    parser = argparse.ArgumentParser(
-        description=desc, formatter_class=argparse.RawDescriptionHelpFormatter,
-    )
+    parser = argparse.ArgumentParser(description=desc, formatter_class=CustomFormatter)
     parser.add_argument(
         "-v",
         help="increase logging output to console",
@@ -102,12 +138,18 @@ def parse_args(args: List[str]) -> OrderedNamespace:
     )
 
     # resize
-    resize_cmd = commands.add_parser("resize", help="resize image dimensions")
+    resize_cmd = commands.add_parser("resize", help="resize image dimensions",)
     resize_cmd.add_argument(
-        "-s", help="scale output size", dest="scale", metavar="SCALE", type=float,
+        "-s",
+        "--scale",
+        help="scale output size",
+        dest="scale",
+        metavar="SCALE",
+        type=float,
     )
     resize_cmd.add_argument(
         "-mw",
+        "--max-width",
         help="maximum width of output",
         dest="width",
         metavar="WIDTH",
@@ -116,6 +158,7 @@ def parse_args(args: List[str]) -> OrderedNamespace:
     )
     resize_cmd.add_argument(
         "-mh",
+        "--max-height",
         help="maximum height of output",
         dest="height",
         metavar="HEIGHT",
@@ -124,6 +167,7 @@ def parse_args(args: List[str]) -> OrderedNamespace:
     )
     resize_cmd.add_argument(
         "-ld",
+        "--longest-dimension",
         help="longest dimension of output",
         dest="longest_dim",
         metavar="PIXELS",
@@ -135,31 +179,35 @@ def parse_args(args: List[str]) -> OrderedNamespace:
     watermark_cmd = commands.add_parser("watermark", help="add watermark to image")
     watermark_cmd.add_argument(
         "-i",
+        "--image",
         help="image file to use as watermark",
-        type=Path,
-        dest="watermark_image",
-        metavar="PATH",
+        type=argparse.FileType("rb"),
+        dest="image",
+        metavar="IMAGE",
     )
     watermark_cmd.add_argument(
         "-r",
+        "--rotation",
         help="angle of watermark rotation",
-        dest="watermark_rotation",
+        dest="rotation",
         metavar="ANGLE",
         type=int,
         default=0,
     )
     watermark_cmd.add_argument(
         "-o",
+        "--opacity",
         help="watermark opacity",
-        dest="watermark_opacity",
+        dest="opacity",
         type=float,
         metavar="OPACITY",
         default=0.3,
     )
     watermark_cmd.add_argument(
         "-p",
+        "--position",
         help="watermark position",
-        dest="watermark_position",
+        dest="position",
         metavar="POS",
         default=Position.BOTTOM_RIGHT,
         type=Position.argparse,
@@ -167,12 +215,12 @@ def parse_args(args: List[str]) -> OrderedNamespace:
     )
     watermark_cmd.add_argument(
         "-s",
+        "--scale",
         help="watermark scale in percent of image size (default = 10)",
-        dest="watermark_scale",
+        dest="scale",
         metavar="SCALE",
         default=0.2,
-        type=lambda n: 0 < float(n) < 1
-        or parser.error("watermark scale must be between 0 and 1"),
+        type=float,
     )
 
     # Text
@@ -266,6 +314,9 @@ def parse_args(args: List[str]) -> OrderedNamespace:
         dest="suffix",
         default="_edited",
     )
+
+    for _, subp in commands.choices.items():
+        subp.formatter_class = CustomFormatter
 
     if parser._positionals.title is not None:
         parser._positionals.title = "Arguments"
