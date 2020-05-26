@@ -7,13 +7,12 @@ import logging
 import math
 import sys
 from functools import wraps
-from typing import Tuple, Optional
+from typing import Optional, Tuple
 
-import cv2
 from PIL import Image
 
-from pyimgtool.exceptions import ImageSizeError
 from pyimgtool.data_structures import ImageSize
+from pyimgtool.exceptions import ImageSizeError
 
 LOG = logging.getLogger(__name__)
 
@@ -111,11 +110,11 @@ def resize_cover(image: Image, size: Tuple[int, int], resample=Image.LANCZOS) ->
     img = image.copy()
     img_size = img.size
     ratio = max(size[0] / img_size[0], size[1] / img_size[1])
-    new_size = [
+    new_size = (
         int(math.ceil(img_size[0] * ratio)),
         int(math.ceil(img_size[1] * ratio)),
-    ]
-    img = img.resize((new_size[0], new_size[1]), resample)
+    )
+    img = img.resize(new_size, resample)
     img = resize_crop(img, size)
     img.format = img_format
     return img
@@ -144,7 +143,7 @@ def resize_contain(
     """
     img_format = image.format
     img = image.copy()
-    img.thumbnail((size[0], size[1]), resample)
+    img.thumbnail(size, resample)
     if not bg_size:
         bg_size = size
     background = Image.new("RGBA", bg_size, bg_color)
@@ -207,9 +206,7 @@ def resize_height(image: Image, size: Tuple[int, int], resample=Image.LANCZOS) -
     return img
 
 
-def resize_thumbnail(
-        image: Image, size: ImageSize, resample=Image.LANCZOS
-) -> Image:
+def resize_thumbnail(image: Image, size: ImageSize, resample=Image.LANCZOS) -> Image:
     """Resize image to according to specified size.
 
     Aspect ratio is kept intact while trying best to match `size`.
@@ -221,11 +218,8 @@ def resize_thumbnail(
 
     Returns: PIL Image
     """
-    img_format = image.format
-    img = image.copy()
-    img.thumbnail((size.width, size.height), resample)
-    img.format = img_format
-    return img
+    image.thumbnail(size, resample)
+    return image
 
 
 def resize(method, *args, **kwargs):
@@ -244,6 +238,7 @@ def resize(method, *args, **kwargs):
     method = f"resize_{method}"
     LOG.info("Resizing with %s()", method)
     return getattr(sys.modules[__name__], method)(*args, **kwargs)
+
 
 def calculate_new_size(
     orig_size: ImageSize, scale: Optional[float], new_size: Optional[ImageSize]

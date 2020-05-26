@@ -1,10 +1,8 @@
 """Classes, enums, and misc data containers."""
 
 import logging
-from argparse import Namespace as ArgparseNamespace
-from dataclasses import asdict, dataclass, field
+from dataclasses import dataclass
 from enum import Enum
-from pathlib import Path
 
 LOG = logging.getLogger(__name__)
 
@@ -46,6 +44,11 @@ class ImageSize:
 
     width: int = 0
     height: int = 0
+
+    def __iter__(self):
+        """Allow iteration of object."""
+        for item in [self.width, self.height]:
+            yield item
 
     def __str__(self):
         """Return string representation, e.g.: width x height px."""

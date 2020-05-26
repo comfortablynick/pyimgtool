@@ -1,7 +1,6 @@
 """Resize and watermark images."""
 
 import logging
-import os
 import sys
 from io import BytesIO
 from pathlib import Path
@@ -9,7 +8,6 @@ from pprint import pformat
 from time import perf_counter
 from typing import Dict, Optional
 
-import cv2
 import numpy as np
 import piexif
 import plotille
@@ -19,7 +17,7 @@ from sty import ef, fg, rs
 from pyimgtool.args import parse_args
 from pyimgtool.commands import resize, watermark
 from pyimgtool.data_structures import ImageSize
-from pyimgtool.utils import humanize_bytes, escape_ansi
+from pyimgtool.utils import humanize_bytes
 
 logging.basicConfig(level=logging.WARNING)
 LOG = logging.getLogger(__name__)
@@ -38,8 +36,8 @@ def main():
         log_level = 10
     loggers = [logging.getLogger(name) for name in logging.root.manager.loggerDict]
     # set level for all loggers
-    for l in loggers:
-        l.setLevel(log_level)
+    for logger in loggers:
+        logger.setLevel(log_level)
 
     LOG.debug("Program opts:\n%s", pformat(vars(opts)))
 
@@ -75,6 +73,7 @@ def main():
                 pass
             in_dpi = im.info["dpi"]
             LOG.info("Input size: %s", humanize_bytes(in_file_size))
+            LOG.info("Input dpi: %s", in_dpi)
             if arg.show_histogram:
                 print(generate_rgb_histogram(im))
         elif cmd == "resize":
@@ -84,10 +83,11 @@ def main():
             out_image_size = ImageSize(width=new_size.width, height=new_size.height)
 
             # Resize/resample
-            im = resize.resize_thumbnail(
+            im = resize.resize(
+                "thumbnail",
                 im,
                 out_image_size,
-                #  bg_size=(cfg.width + 50, cfg.height + 50),
+                # bg_size=(out_image_size.width + 50, out_image_size.height + 50),
                 resample=Image.ANTIALIAS,
             )
         elif cmd == "text":
@@ -159,8 +159,7 @@ def main():
 
     time_end = perf_counter()
     size_reduction_bytes = in_file_size - out_file_size
-    no_op_msg = f" **Image not saved due to -n flag; reporting only** "
-    # no_op_msg = " **Image not saved due to -n flag; reporting only** "
+    no_op_msg = "**Image not saved due to -n flag; reporting only**"
     report_title = " Processing Summary "
     report_end = " End "
     report_arrow = "->"
@@ -207,12 +206,17 @@ def main():
     col2w = max([len(str(c[2])) for c in report]) + padding
     col3w = max([len(str(c[3])) for c in report]) + padding
     out = []
-    out.append(f"{ef.b}{report_title:{'-'}^{col0w + col1w + col2w + col3w + 1}}{rs.all}")
+    out.append(
+        f"{ef.b}{report_title:{'-'}^{col0w + col1w + col2w + col3w + 1}}{rs.all}"
+    )
     if no_op:
-        out.append(f"{fg.li_cyan}{ef.b}{no_op_msg:^{col0w + col1w + col2w + col3w + 1}}{rs.all}")
+        out.append(
+            f"{fg.li_cyan}{ef.b}{no_op_msg:^{col0w + col1w + col2w + col3w + 1}}{rs.all}"
+        )
     for line in report:
         out.append(
-            f"{line[0]:<{col0w}}{rs.all} {line[1]:{col1w}} {line[2]:{col2w}} {ef.i}{line[3]:{col3w}}{rs.all}"
+            f"{line[0]:<{col0w}}{rs.all} {line[1]:{col1w}}"
+            + f"{line[2]:{col2w}} {ef.i}{line[3]:{col3w}}{rs.all}"
         )
     out.append(f"{ef.b}{report_end:{'-'}^{col0w + col1w + col2w + col3w + 1}}{rs.all}")
     print(*out, sep="\n")
@@ -251,7 +255,9 @@ def generate_rgb_histogram(im: Image, show_axes: bool = False) -> str:
         fig.plot(bins[:hist_bins], hist_data, lc=colors[i])
     if not show_axes:
         graph = (
-            "\n".join(["".join(l.split("|")[1]) for l in fig.show().splitlines()[1:-2]])
+            "\n".join(
+                ["".join(ln.split("|")[1]) for ln in fig.show().splitlines()[1:-2]]
+            )
             + "\n"
         )
     else:

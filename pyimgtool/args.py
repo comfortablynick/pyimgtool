@@ -99,7 +99,9 @@ def parse_args(args: List[str]) -> OrderedNamespace:
         quality levels. Watermarking can also be added.
         """
     )
-    parser = argparse.ArgumentParser(description=desc, formatter_class=CustomFormatter)
+    parser = argparse.ArgumentParser(
+        description=desc, formatter_class=argparse.RawTextHelpFormatter
+    )
     parser.add_argument(
         "-v",
         help="increase logging output to console",
