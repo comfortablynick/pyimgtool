@@ -2,6 +2,7 @@
 
 import logging
 import sys
+import os
 from io import BytesIO
 from pathlib import Path
 from pprint import pformat
@@ -9,6 +10,7 @@ from time import perf_counter
 from typing import Dict, Optional
 
 import numpy as np
+import cv2
 import piexif
 import plotille
 from PIL import Image
@@ -17,7 +19,7 @@ from sty import ef, fg, rs
 from pyimgtool.args import parse_args
 from pyimgtool.commands import resize, watermark
 from pyimgtool.data_structures import ImageSize
-from pyimgtool.utils import humanize_bytes
+from pyimgtool.utils import humanize_bytes, rgba2rgb
 
 logging.basicConfig(level=logging.WARNING)
 LOG = logging.getLogger(__name__)
@@ -57,21 +59,19 @@ def main():
         LOG.debug("Processing command %s with args:\n%s", cmd, pformat(vars(arg)))
 
         if cmd == "open":
-            inbuf = BytesIO()
-            inbuf.write(arg.input.read())
-            in_file_size = inbuf.tell()
-            im = Image.open(inbuf)
+            in_file_path = arg.input.name
+            in_file_size = os.path.getsize(in_file_path)
+            im = Image.open(arg.input)
             assert im is not None
 
             in_image_size = ImageSize(*im.size)
             LOG.info("Input dims: %s", in_image_size)
-            in_file_path = arg.input.name
             try:
                 in_exif = piexif.load(in_file_path)
                 # del in_exif["thumbnail"]
+                in_dpi = im.info["dpi"]
             except KeyError:
                 pass
-            in_dpi = im.info["dpi"]
             LOG.info("Input size: %s", humanize_bytes(in_file_size))
             LOG.info("Input dpi: %s", in_dpi)
             if arg.show_histogram:
@@ -89,6 +89,18 @@ def main():
                 out_image_size,
                 # bg_size=(out_image_size.width + 50, out_image_size.height + 50),
                 resample=Image.ANTIALIAS,
+            )
+        elif cmd == "resize2":
+            im = np.asarray(im)
+            # bgr -> rgb
+            # im = im[..., ::-1].copy()
+            LOG.debug("Shape: %s", im.shape)
+            new_size = resize.calculate_new_size(
+                in_image_size, arg.scale, ImageSize(width=arg.width, height=arg.height),
+            )
+            out_image_size = ImageSize(width=new_size.width, height=new_size.height)
+            im = cv2.resize(
+                im, (new_size.width, new_size.height), interpolation=cv2.INTER_AREA
             )
         elif cmd == "text":
             im = watermark.with_text(
@@ -108,6 +120,33 @@ def main():
                 position=arg.position,
                 opacity=arg.opacity,
             )
+        elif cmd == "watermark2":
+            wimage = cv2.imread(arg.image.name, cv2.IMREAD_UNCHANGED)
+            wH, wW = wimage.shape[:2]
+            new_size = resize.calculate_new_size(ImageSize(wW, wH), arg.scale)
+            wimage = cv2.resize(
+                wimage, (new_size.width, new_size.height), interpolation=cv2.INTER_AREA
+            )
+            wH, wW = wimage.shape[:2]
+            # B, G, R, A = cv2.split(wimage)
+            # B = cv2.bitwise_and(B, B, mask=A)
+            # G = cv2.bitwise_and(G, G, mask=A)
+            # R = cv2.bitwise_and(R, R, mask=A)
+            # wimage = cv2.merge([B, G, R, A])
+            h, w = im.shape[:2]
+            im = np.dstack([im, np.ones((h, w), dtype="uint8") * 255])
+            # construct an overlay that is the same size as the input
+            # image, (using an extra dimension for the alpha transparency),
+            # then add the watermark to the overlay in the bottom-right
+            # corner
+            overlay = np.zeros((h, w, 4), dtype="uint8")
+            overlay[h - wH - 10 : h - 10, w - wW - 10 : w - 10] = wimage
+            # blend the two images together using transparent overlays
+            output = im.copy()
+            cv2.addWeighted(overlay, arg.opacity, output, 1.0, 0, output)
+            im = output
+            # write the output image to disk
+            # cv2.imwrite("../test/sunset_edited.jpg", output)
         elif cmd == "save":
             use_progressive_jpg = in_file_size > 10000
             if use_progressive_jpg:
@@ -120,15 +159,20 @@ def main():
                 exif = b""
 
             outbuf = BytesIO()
-            im.save(
-                outbuf,
-                "JPEG",
-                quality=arg.jpg_quality,
-                dpi=in_dpi,
-                progressive=use_progressive_jpg,
-                optimize=True,
-                exif=exif,
-            )
+            while True:
+                try:
+                    im.save(
+                        outbuf,
+                        "JPEG",
+                        quality=arg.jpg_quality,
+                        dpi=in_dpi,
+                        progressive=use_progressive_jpg,
+                        optimize=True,
+                        exif=exif,
+                    )
+                    break
+                except AttributeError:
+                    im = Image.fromarray(rgba2rgb(im))
             image_buffer = outbuf.getbuffer()
             out_file_size = image_buffer.nbytes
             LOG.info("Output size: %s", humanize_bytes(out_file_size))

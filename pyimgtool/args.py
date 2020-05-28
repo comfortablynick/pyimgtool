@@ -177,14 +177,51 @@ def parse_args(args: List[str]) -> OrderedNamespace:
         default=0,
     )
 
+    resize2_cmd = commands.add_parser(
+        "resize2", help="resize image dimensions using opencv",
+    )
+    resize2_cmd.add_argument(
+        "-s",
+        "--scale",
+        help="scale output size",
+        dest="scale",
+        metavar="SCALE",
+        type=float,
+    )
+    resize2_cmd.add_argument(
+        "-mw",
+        "--max-width",
+        help="maximum width of output",
+        dest="width",
+        metavar="WIDTH",
+        type=int,
+        default=0,
+    )
+    resize2_cmd.add_argument(
+        "-mh",
+        "--max-height",
+        help="maximum height of output",
+        dest="height",
+        metavar="HEIGHT",
+        type=int,
+        default=0,
+    )
+    resize2_cmd.add_argument(
+        "-ld",
+        "--longest-dimension",
+        help="longest dimension of output",
+        dest="longest_dim",
+        metavar="PIXELS",
+        type=int,
+        default=0,
+    )
+
     # Watermark
     watermark_cmd = commands.add_parser("watermark", help="add watermark to image")
     watermark_cmd.add_argument(
-        "-i",
-        "--image",
+        "image",
         help="image file to use as watermark",
         type=argparse.FileType("rb"),
-        dest="image",
         metavar="IMAGE",
     )
     watermark_cmd.add_argument(
@@ -216,6 +253,53 @@ def parse_args(args: List[str]) -> OrderedNamespace:
         choices=list(Position),
     )
     watermark_cmd.add_argument(
+        "-s",
+        "--scale",
+        help="watermark scale in percent of image size (default = 10)",
+        dest="scale",
+        metavar="SCALE",
+        default=0.2,
+        type=float,
+    )
+
+    watermark2_cmd = commands.add_parser(
+        "watermark2", help="add watermark to image using numpy and opencv"
+    )
+    watermark2_cmd.add_argument(
+        "image",
+        help="image file to use as watermark",
+        type=argparse.FileType("rb"),
+        metavar="IMAGE",
+    )
+    watermark2_cmd.add_argument(
+        "-r",
+        "--rotation",
+        help="angle of watermark rotation",
+        dest="rotation",
+        metavar="ANGLE",
+        type=int,
+        default=0,
+    )
+    watermark2_cmd.add_argument(
+        "-o",
+        "--opacity",
+        help="watermark opacity",
+        dest="opacity",
+        type=float,
+        metavar="OPACITY",
+        default=0.3,
+    )
+    watermark2_cmd.add_argument(
+        "-p",
+        "--position",
+        help="watermark position",
+        dest="position",
+        metavar="POS",
+        default=Position.BOTTOM_RIGHT,
+        type=Position.argparse,
+        choices=list(Position),
+    )
+    watermark2_cmd.add_argument(
         "-s",
         "--scale",
         help="watermark scale in percent of image size (default = 10)",

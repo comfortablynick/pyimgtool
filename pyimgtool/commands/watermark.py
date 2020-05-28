@@ -1,7 +1,6 @@
 """Watermark image with text or another image."""
 
 import logging
-import os
 from datetime import datetime
 from pathlib import PurePath
 from typing import Dict, Optional
@@ -20,7 +19,8 @@ def get_region_stats(im: Image, region: list) -> ImageStat:
 
     Args:
         im: The image to get the luminance of
-        region: The region to get the luminance of, in the form [(x0, y0), (x1, y1)] or [x0, y0, x1, y1]
+        region: The region to get the luminance of, in the form
+                [(x0, y0), (x1, y1)] or [x0, y0, x1, y1]
 
     Returns: ImageStat object with stats
     """
