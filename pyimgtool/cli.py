@@ -19,7 +19,7 @@ from sty import ef, fg, rs
 from pyimgtool.args import parse_args
 from pyimgtool.commands import resize, watermark
 from pyimgtool.data_structures import ImageSize
-from pyimgtool.utils import humanize_bytes, rgba2rgb
+from pyimgtool.utils import humanize_bytes
 
 logging.basicConfig(level=logging.WARNING)
 LOG = logging.getLogger(__name__)
@@ -50,6 +50,8 @@ def main():
     in_file_size = 0
     in_dpi = 0
     in_exif: Optional[Dict] = None
+    out_exif: bytes = b""
+    out_exif_size = 0
     out_file_path = None
     out_image_size = ImageSize(0, 0)
     out_file_size = 0
@@ -68,7 +70,8 @@ def main():
             LOG.info("Input dims: %s", in_image_size)
             try:
                 in_exif = piexif.load(in_file_path)
-                # del in_exif["thumbnail"]
+                del in_exif["thumbnail"]
+                # LOG.debug("Exif: %s", in_exif)
                 in_dpi = im.info["dpi"]
             except KeyError:
                 pass
@@ -92,9 +95,8 @@ def main():
             )
         elif cmd == "resize2":
             im = np.asarray(im)
-            # bgr -> rgb
-            # im = im[..., ::-1].copy()
-            LOG.debug("Shape: %s", im.shape)
+            im = cv2.cvtColor(im, cv2.COLOR_RGB2BGR)
+            LOG.debug("Shape: %s", ImageSize.from_np(im))
             new_size = resize.calculate_new_size(
                 in_image_size, arg.scale, ImageSize(width=arg.width, height=arg.height),
             )
@@ -128,11 +130,6 @@ def main():
                 wimage, (new_size.width, new_size.height), interpolation=cv2.INTER_AREA
             )
             wH, wW = wimage.shape[:2]
-            # B, G, R, A = cv2.split(wimage)
-            # B = cv2.bitwise_and(B, B, mask=A)
-            # G = cv2.bitwise_and(G, G, mask=A)
-            # R = cv2.bitwise_and(R, R, mask=A)
-            # wimage = cv2.merge([B, G, R, A])
             h, w = im.shape[:2]
             im = np.dstack([im, np.ones((h, w), dtype="uint8") * 255])
             # construct an overlay that is the same size as the input
@@ -146,7 +143,6 @@ def main():
             cv2.addWeighted(overlay, arg.opacity, output, 1.0, 0, output)
             im = output
             # write the output image to disk
-            # cv2.imwrite("../test/sunset_edited.jpg", output)
         elif cmd == "save":
             use_progressive_jpg = in_file_size > 10000
             if use_progressive_jpg:
@@ -154,28 +150,35 @@ def main():
 
             # Exif
             if arg.keep_exif:
-                exif = piexif.dump(piexif.load(in_file_path))
-            else:
-                exif = b""
+                out_exif = piexif.dump(piexif.load(in_file_path))
+                out_exif_size = sys.getsizeof(out_exif)
 
             outbuf = BytesIO()
-            while True:
-                try:
-                    im.save(
-                        outbuf,
-                        "JPEG",
-                        quality=arg.jpg_quality,
-                        dpi=in_dpi,
-                        progressive=use_progressive_jpg,
-                        optimize=True,
-                        exif=exif,
-                    )
-                    break
-                except AttributeError:
-                    im = Image.fromarray(rgba2rgb(im))
+            try:
+                im.save(
+                    outbuf,
+                    "JPEG",
+                    quality=arg.jpg_quality,
+                    dpi=in_dpi,
+                    progressive=use_progressive_jpg,
+                    optimize=True,
+                    exif=out_exif,
+                )
+            except AttributeError:
+                write_params = [
+                    cv2.IMWRITE_JPEG_QUALITY,
+                    arg.jpg_quality,
+                    cv2.IMWRITE_JPEG_OPTIMIZE,
+                ]
+                if use_progressive_jpg:
+                    write_params += [
+                        cv2.IMWRITE_JPEG_PROGRESSIVE,
+                    ]
+                _, buf = cv2.imencode(".jpg", im, write_params)
+                outbuf = BytesIO(buf)
             image_buffer = outbuf.getbuffer()
-            out_file_size = image_buffer.nbytes
-            LOG.info("Output size: %s", humanize_bytes(out_file_size))
+            out_file_size = image_buffer.nbytes + out_exif_size
+            LOG.info("Buffer output size: %s", humanize_bytes(out_file_size))
 
             if arg.output is not None:
                 out_file_path = arg.output.name
@@ -200,6 +203,9 @@ def main():
 
                 with out_path.open("wb") as f:
                     f.write(image_buffer)
+                    if arg.keep_exif:
+                        piexif.insert(out_exif, out_file_path)
+                    out_file_size = os.path.getsize(out_file_path)
 
     time_end = perf_counter()
     size_reduction_bytes = in_file_size - out_file_size

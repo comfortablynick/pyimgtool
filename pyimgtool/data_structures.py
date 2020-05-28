@@ -3,6 +3,7 @@
 import logging
 from dataclasses import dataclass
 from enum import Enum
+import numpy as np
 
 LOG = logging.getLogger(__name__)
 
@@ -58,3 +59,14 @@ class ImageSize:
     def area(self) -> int:
         """Pixel area of image."""
         return self.width * self.height
+
+    @classmethod
+    def from_np(cls, np_array: np.ndarray):
+        """Create instance from numpy array.
+
+        Args:
+            np_array: Numpy image array
+        """
+        size = cls()
+        size.height, size.width = np_array.shape[:2]
+        return size

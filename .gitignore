@@ -1,7 +1,7 @@
 conf.ini
 .vim/
 .ropeproject/
-*_edited.jpg
+*_edited*.jpg
 *.tif
 .vscode/
 __pycache__/
