@@ -8,6 +8,8 @@ import math
 import sys
 from functools import wraps
 from typing import Optional, Tuple
+import numpy as np
+import cv2
 
 from PIL import Image
 
@@ -238,6 +240,21 @@ def resize(method, *args, **kwargs):
     method = f"resize_{method}"
     LOG.info("Resizing with %s()", method)
     return getattr(sys.modules[__name__], method)(*args, **kwargs)
+
+
+def resize_opencv(im, size, resample=cv2.INTER_AREA):
+    """Resize with opencv, keeping ratio intact.
+
+    Args:
+        im: Numpy array
+        size: ImageSize
+        resample: Resampling interpolation algorithm
+
+    Returns: Resized image array
+    """
+    LOG.debug("Resizing to %s", size)
+    im = cv2.resize(im, (size.width, size.height), interpolation=resample)
+    return im
 
 
 def calculate_new_size(

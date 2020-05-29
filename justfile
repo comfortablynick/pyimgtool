@@ -1,6 +1,7 @@
 bin_name := 'pyimgtool'
 test_file_in := 'test/sunset.jpg'
 test_file_out := 'test/sunset_edited.jpg'
+test_file_out2 := 'test/sunset_edited2.jpg'
 test_watermark_file := 'test/logo.png'
 test_full_watermark_file := 'test/logo_full.png'
 
@@ -16,7 +17,7 @@ runargs +args='':
 
 # test
 runtest:
-    {{bin_name}} {{test_file_in}} {{test_file_out}} -vvf -mw 2000 -hi
+    {{bin_name}} -vv open {{test_file_in}} resize2 -s 0.4 save {{test_file_out2}} -f
 
 # test text watermark
 runw +args='':

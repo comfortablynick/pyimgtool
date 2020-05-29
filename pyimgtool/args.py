@@ -123,7 +123,8 @@ def parse_args(args: List[str]) -> OrderedNamespace:
         title="Commands", description="image operations", help="valid commands",
     )
 
-    # input
+    # Commands
+    # Open
     open_cmd = commands.add_parser("open", help="open image for editing")
     open_cmd.add_argument(
         "input",
@@ -139,7 +140,7 @@ def parse_args(args: List[str]) -> OrderedNamespace:
         action="store_true",
     )
 
-    # resize
+    # Resize
     resize_cmd = commands.add_parser("resize", help="resize image dimensions",)
     resize_cmd.add_argument(
         "-s",
@@ -177,6 +178,7 @@ def parse_args(args: List[str]) -> OrderedNamespace:
         default=0,
     )
 
+    # Resize2
     resize2_cmd = commands.add_parser(
         "resize2", help="resize image dimensions using opencv",
     )
@@ -262,6 +264,7 @@ def parse_args(args: List[str]) -> OrderedNamespace:
         type=float,
     )
 
+    # Watermark2
     watermark2_cmd = commands.add_parser(
         "watermark2", help="add watermark to image using numpy and opencv"
     )
@@ -312,14 +315,14 @@ def parse_args(args: List[str]) -> OrderedNamespace:
     # Text
     text_cmd = commands.add_parser("text", help="add text to image")
     text_cmd.add_argument(
-        "-t", help="text to display on image", dest="text", metavar="TEXT", type=str
+        "text", help="text to display on image", metavar="TEXT", type=str
     )
     text_cmd.add_argument(
         "-c",
-        help="display copyright message after © and date taken",
+        "--copyright",
+        help="display TEXT as copyright message after © and date taken",
         dest="copyright",
-        metavar="MESSAGE",
-        type=str,
+        action="store_true",
     )
     text_cmd.add_argument(
         "-r",
@@ -355,6 +358,53 @@ def parse_args(args: List[str]) -> OrderedNamespace:
         type=float,
     )
 
+    # Text2
+    text2_cmd = commands.add_parser("text2", help="add text to image using opencv")
+    text2_cmd.add_argument(
+        "text", help="text to display on image", metavar="TEXT", type=str
+    )
+    text2_cmd.add_argument(
+        "-c",
+        "--copyright",
+        help="display TEXT as copyright message after © and date taken",
+        dest="copyright",
+        action="store_true",
+    )
+    text2_cmd.add_argument(
+        "-r",
+        help="angle of text rotation",
+        dest="rotation",
+        metavar="ANGLE",
+        type=int,
+        default=0,
+    )
+    text2_cmd.add_argument(
+        "-o",
+        help="opacity",
+        dest="opacity",
+        type=float,
+        metavar="OPACITY",
+        default=0.3,
+    )
+    text2_cmd.add_argument(
+        "-p",
+        help="position",
+        dest="position",
+        metavar="POS",
+        default=Position.BOTTOM_RIGHT,
+        type=Position.argparse,
+        choices=list(Position),
+    )
+    text2_cmd.add_argument(
+        "-s",
+        help="scale of text relative to image width",
+        dest="scale",
+        metavar="SCALE",
+        default=0.20,
+        type=float,
+    )
+
+    # Save
     save_cmd = commands.add_parser("save", help="save edited file to disk")
     save_cmd.add_argument(
         "output",
@@ -463,3 +513,6 @@ def parse_args(args: List[str]) -> OrderedNamespace:
     for a in top_level_opts:
         delattr(ns, a)
     return ns
+
+
+# vim:fdl=3:

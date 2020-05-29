@@ -94,16 +94,12 @@ def main():
                 resample=Image.ANTIALIAS,
             )
         elif cmd == "resize2":
-            im = np.asarray(im)
-            im = cv2.cvtColor(im, cv2.COLOR_RGB2BGR)
-            LOG.debug("Shape: %s", ImageSize.from_np(im))
-            new_size = resize.calculate_new_size(
+            out_image_size = resize.calculate_new_size(
                 in_image_size, arg.scale, ImageSize(width=arg.width, height=arg.height),
             )
-            out_image_size = ImageSize(width=new_size.width, height=new_size.height)
-            im = cv2.resize(
-                im, (new_size.width, new_size.height), interpolation=cv2.INTER_AREA
-            )
+            im = np.asarray(im)
+            im = cv2.cvtColor(im, cv2.COLOR_RGB2BGR)
+            im = resize.resize_opencv(im, out_image_size)
         elif cmd == "text":
             im = watermark.with_text(
                 im,
@@ -114,6 +110,17 @@ def main():
                 opacity=arg.opacity,
                 exif=in_exif,
             )
+        elif cmd == "text2":
+            im = watermark.with_text(
+                Image.fromarray(im),
+                text=arg.text,
+                copyright=arg.copyright,
+                scale=arg.scale,
+                position=arg.position,
+                opacity=arg.opacity,
+                exif=in_exif,
+            )
+            im = np.asarray(im)
         elif cmd == "watermark":
             im = watermark.with_image(
                 im,
@@ -123,26 +130,14 @@ def main():
                 opacity=arg.opacity,
             )
         elif cmd == "watermark2":
-            wimage = cv2.imread(arg.image.name, cv2.IMREAD_UNCHANGED)
-            wH, wW = wimage.shape[:2]
-            new_size = resize.calculate_new_size(ImageSize(wW, wH), arg.scale)
-            wimage = cv2.resize(
-                wimage, (new_size.width, new_size.height), interpolation=cv2.INTER_AREA
+            watermark_image = cv2.imread(arg.image.name, cv2.IMREAD_UNCHANGED)
+            im = watermark.with_image_opencv(
+                im,
+                watermark_image,
+                scale=arg.scale,
+                position=arg.position,
+                opacity=arg.opacity,
             )
-            wH, wW = wimage.shape[:2]
-            h, w = im.shape[:2]
-            im = np.dstack([im, np.ones((h, w), dtype="uint8") * 255])
-            # construct an overlay that is the same size as the input
-            # image, (using an extra dimension for the alpha transparency),
-            # then add the watermark to the overlay in the bottom-right
-            # corner
-            overlay = np.zeros((h, w, 4), dtype="uint8")
-            overlay[h - wH - 10 : h - 10, w - wW - 10 : w - 10] = wimage
-            # blend the two images together using transparent overlays
-            output = im.copy()
-            cv2.addWeighted(overlay, arg.opacity, output, 1.0, 0, output)
-            im = output
-            # write the output image to disk
         elif cmd == "save":
             use_progressive_jpg = in_file_size > 10000
             if use_progressive_jpg:

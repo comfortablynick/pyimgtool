@@ -3,11 +3,13 @@
 import logging
 from datetime import datetime
 from pathlib import PurePath
-from typing import Dict, Optional
+from typing import Dict, Any
+import numpy as np
+import cv2
 
 from PIL import Image, ImageDraw, ImageFont, ImageStat
 
-from pyimgtool.commands.resize import resize_height
+from pyimgtool.commands.resize import resize_height, calculate_new_size
 from pyimgtool.data_structures import ImageSize, Position
 from pyimgtool.utils import get_pkg_root
 
@@ -97,27 +99,26 @@ def find_best_location(im: Image, size: ImageSize, padding: float) -> Position:
     return locations[index]
 
 
-def get_copyright_string(im: Image, text_copyright, exif: Optional[Dict] = None) -> str:
+def get_copyright_string(exif: Dict[Any, Any]) -> str:
     """Extract date taken from photo to add to copyright text.
 
     Args:
-        im: PIL Image
-        text_copyright: Copyright text
         exif: Dictionary of exif data
+
+    Returns: string of copyright symbol and date
     """
-    photo_dt = datetime.now()
     if exif is not None:
-        LOG.debug("Exif data: %s", exif["Exif"])
+        # LOG.debug("Exif data: %s", exif["Exif"])
         try:
             photo_dt = datetime.strptime(
                 exif["Exif"]["DateTimeOriginal"].decode("utf-8"), "%Y:%m:%d %H:%M:%S",
             )
         except KeyError:
-            pass
+            photo_dt = datetime.now()
     copyright_year = photo_dt.strftime("%Y")
-    LOG.info("Using copyright text: %s", text_copyright)
+    # LOG.info("Using copyright text: %s", text_copyright)
     LOG.info("Photo date from exif: %s", photo_dt)
-    return f"© {copyright_year} {text_copyright}"
+    return f"© {copyright_year}"
 
 
 def with_image(
@@ -166,10 +167,50 @@ def with_image(
     return im
 
 
+def with_image_opencv(
+    im: np.ndarray,
+    watermark_image: np.ndarray,
+    scale: float = 0.2,
+    position: Position = None,
+    opacity: float = 0.3,
+    padding: int = 10,
+) -> Image:
+    """Watermark with image according to Config.
+
+    Args:
+        im: Numpy array
+        watermark_image: Numpy array
+        scale: Scale for watermark relative to image
+        position: Position of watermark
+        opacity: Watermark layer opacity from 0 to 1
+        padding: Pixels of padding for watermark
+
+    Returns: Watermarked image array
+    """
+    wH, wW = watermark_image.shape[:2]
+    new_size = calculate_new_size(ImageSize(wW, wH), scale)
+    watermark_image = cv2.resize(
+        watermark_image, (new_size.width, new_size.height), interpolation=cv2.INTER_AREA
+    )
+    wH, wW = watermark_image.shape[:2]
+    h, w = im.shape[:2]
+    im = np.dstack([im, np.ones((h, w), dtype="uint8") * 255])
+    # construct an overlay that is the same size as the input
+    # image, (using an extra dimension for the alpha transparency),
+    # then add the watermark to the overlay in the bottom-right
+    # corner
+    overlay = np.zeros((h, w, 4), dtype="uint8")
+    overlay[h - wH - 10 : h - 10, w - wW - 10 : w - 10] = watermark_image
+    # blend the two images together using transparent overlays
+    output = im.copy()
+    cv2.addWeighted(overlay, opacity, output, 1.0, 0, output)
+    return output
+
+
 def with_text(
     im: Image,
     text: str = None,
-    copyright: str = None,
+    copyright: bool = False,
     scale: float = 0.2,
     position: Position = None,
     opacity: float = 0.3,
@@ -184,8 +225,8 @@ def with_text(
 
     Args:
         im: PIL Image
-        text: General text to add to image
-        copyright: Text for copyright
+        text: Text to add to image
+        copyright: Precede text with copyright info
         scale: Scale for size of text relative to image
         position: Text position in image
         opacity: Text layer opacity from 0 to 1
@@ -194,12 +235,9 @@ def with_text(
 
     Return: Watermarked image
     """
-    if text is None and copyright is None:
-        LOG.error("Need either text or copyright text")
-        return im
-    if copyright is not None:
+    if copyright and exif is not None:
         # Add date photo taken to copyright text
-        text = get_copyright_string(im, copyright, exif)
+        text = f"{get_copyright_string(exif)} {text}"
     layer = Image.new("RGBA", (im.width, im.height), (255, 255, 255, 0))
 
     font_size = 1  # starting size
