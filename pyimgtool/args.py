@@ -162,31 +162,23 @@ def parse_args(args: List[str]) -> OrderedNamespace:
         type=float,
     )
     resize_cmd.add_argument(
-        "-mw",
-        "--max-width",
-        help="maximum width of output",
-        dest="width",
-        metavar="WIDTH",
-        type=int,
-        default=0,
+        "-W", "--width", help="absolute width of output", metavar="PX", type=int,
     )
     resize_cmd.add_argument(
-        "-mh",
-        "--max-height",
-        help="maximum height of output",
-        dest="height",
-        metavar="HEIGHT",
-        type=int,
-        default=0,
+        "-H", "--height", help="absolute height of output", metavar="PX", type=int,
+    )
+    resize_cmd.add_argument(
+        "-mw", "--max-width", help="maximum width of output", metavar="PX", type=int,
+    )
+    resize_cmd.add_argument(
+        "-mh", "--max-height", help="maximum height of output", metavar="PX", type=int,
     )
     resize_cmd.add_argument(
         "-ld",
-        "--longest-dimension",
+        "--longest-dim",
         help="longest dimension of output",
-        dest="longest_dim",
-        metavar="PIXELS",
+        metavar="PX",
         type=int,
-        default=0,
     )
 
     # Resize2
@@ -194,39 +186,25 @@ def parse_args(args: List[str]) -> OrderedNamespace:
         "resize2", help="resize image dimensions using opencv",
     )
     resize2_cmd.add_argument(
-        "-s",
-        "--scale",
-        help="scale output size",
-        dest="scale",
-        metavar="SCALE",
-        type=float,
+        "-s", "--scale", help="scale output size", metavar="SCALE", type=float,
     )
     resize2_cmd.add_argument(
-        "-mw",
-        "--max-width",
-        help="maximum width of output",
-        dest="width",
-        metavar="WIDTH",
-        type=int,
-        default=0,
+        "-mw", "--max-width", help="maximum width of output", metavar="PX", type=int,
     )
     resize2_cmd.add_argument(
         "-mh",
         "--max-height",
         help="maximum height of output",
         dest="height",
-        metavar="HEIGHT",
+        metavar="PX",
         type=int,
-        default=0,
     )
     resize2_cmd.add_argument(
         "-ld",
-        "--longest-dimension",
+        "--longest-dim",
         help="longest dimension of output",
-        dest="longest_dim",
-        metavar="PIXELS",
+        metavar="PX",
         type=int,
-        default=0,
     )
 
     # Watermark

@@ -9,8 +9,8 @@ import cv2
 
 from PIL import Image, ImageDraw, ImageFont, ImageStat
 
-from pyimgtool.commands.resize import resize_height, calculate_new_size
-from pyimgtool.data_structures import ImageSize, Position
+from pyimgtool.commands.resize import resize_height
+from pyimgtool.data_structures import Size, Position
 from pyimgtool.utils import get_pkg_root
 
 LOG = logging.getLogger(__name__)
@@ -33,7 +33,7 @@ def get_region_stats(im: Image, region: list) -> ImageStat:
     return ImageStat.Stat(image_l, mask=mask)
 
 
-def find_best_location(im: Image, size: ImageSize, padding: float) -> Position:
+def find_best_location(im: Image, size: Size, padding: float) -> Position:
     """Find the best location for the watermark.
 
     The best location is the one with least luminance variance.
@@ -155,7 +155,7 @@ def with_image(
         LOG.debug("New watermark dims: %s", watermark_image.size)
     offset_x = padding
     offset_y = padding
-    watermark_size = ImageSize(watermark_image.width, watermark_image.height)
+    watermark_size = Size(watermark_image.width, watermark_image.height)
     mask = watermark_image.split()[3].point(lambda i: i * opacity)
     pos = (
         (im.width - watermark_image.width - offset_x),
@@ -188,7 +188,7 @@ def with_image_opencv(
     Returns: Watermarked image array
     """
     wH, wW = watermark_image.shape[:2]
-    new_size = calculate_new_size(ImageSize(wW, wH), scale)
+    new_size = Size.calculate_new(Size(wW, wH), scale)
     watermark_image = cv2.resize(
         watermark_image, (new_size.width, new_size.height), interpolation=cv2.INTER_AREA
     )

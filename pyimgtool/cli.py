@@ -18,7 +18,7 @@ from sty import ef, fg, rs
 
 from pyimgtool.args import parse_args
 from pyimgtool.commands import resize, watermark, mat
-from pyimgtool.data_structures import ImageSize
+from pyimgtool.data_structures import Size
 from pyimgtool.utils import humanize_bytes
 
 logging.basicConfig(level=logging.WARNING)
@@ -46,14 +46,14 @@ def main():
     # main vars
     im: Image = None
     in_file_path: str = None
-    in_image_size = ImageSize(0, 0)
+    in_image_size = Size(0, 0)
     in_file_size = 0
     in_dpi = 0
     in_exif: Optional[Dict] = None
     out_exif: bytes = b""
     out_exif_size = 0
     out_file_path = None
-    out_image_size = ImageSize(0, 0)
+    out_image_size = Size(0, 0)
     out_file_size = 0
     no_op = False
 
@@ -66,7 +66,7 @@ def main():
             im = Image.open(arg.input)
             assert im is not None
 
-            in_image_size = ImageSize(*im.size)
+            in_image_size = Size(*im.size)
             LOG.info("Input dims: %s", in_image_size)
             try:
                 in_exif = piexif.load(in_file_path)
@@ -82,22 +82,37 @@ def main():
         elif cmd == "mat":
             im = mat.create_mat(im, mat_size="letter")
         elif cmd == "resize":
-            new_size = resize.calculate_new_size(
-                in_image_size, arg.scale, ImageSize(width=arg.width, height=arg.height),
-            )
-            out_image_size = ImageSize(width=new_size.width, height=new_size.height)
+            resize_method = "thumbnail"
+            new_size = Size(arg.width, arg.height)
+            if arg.width is not None and arg.height is not None:
+                resize_method = "crop"
+                new_size = Size(arg.width, arg.height)
+                if (
+                    new_size.width > in_image_size.width
+                    or new_size.height > in_image_size.height
+                ):
+                    resize_method = "contain"
+            elif arg.width is not None and arg.height is None:
+                resize_method = "width"
+            elif arg.width is None and arg.height is not None:
+                resize_method = "height"
+            else:
+                new_size = Size.calculate_new(
+                    in_image_size, arg.scale, Size(width=arg.width, height=arg.height),
+                )
+            out_image_size = new_size
 
             # Resize/resample
             im = resize.resize(
-                "thumbnail",
+                resize_method,
                 im,
                 out_image_size,
                 # bg_size=(out_image_size.width + 50, out_image_size.height + 50),
-                resample=Image.ANTIALIAS,
+                # resample=Image.ANTIALIAS,
             )
         elif cmd == "resize2":
-            out_image_size = resize.calculate_new_size(
-                in_image_size, arg.scale, ImageSize(width=arg.width, height=arg.height),
+            out_image_size = Size.calculate_new(
+                in_image_size, arg.scale, Size(width=arg.width, height=arg.height),
             )
             im = np.asarray(im)
             im = cv2.cvtColor(im, cv2.COLOR_RGB2BGR)
@@ -143,7 +158,7 @@ def main():
         elif cmd == "save":
             use_progressive_jpg = in_file_size > 10000
             if use_progressive_jpg:
-                LOG.debug("Large file; using progressive jpg")
+                LOG.debug("Large file; using pSizee jpg")
 
             # Exif
             if arg.keep_exif:

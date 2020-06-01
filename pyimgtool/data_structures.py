@@ -1,7 +1,9 @@
 """Classes, enums, and misc data containers."""
 
+from __future__ import annotations
 import logging
 from dataclasses import dataclass
+
 from enum import Enum
 import numpy as np
 
@@ -40,11 +42,17 @@ class Position(Enum):
 
 
 @dataclass
-class ImageSize:
-    """Pixel dimensions of image."""
+class Size:
+    """Pixel dimensions of image.
 
-    width: int = 0
-    height: int = 0
+    Args:
+        width: Width of image (None -> 0)
+        height: Height of image (None -> 0)
+    """
+
+    def __init__(self, width: int = 0, height: int = 0):
+        self.width = width if width is not None else 0
+        self.height = height if height is not None else 0
 
     def __iter__(self):
         """Allow iteration of object."""
@@ -60,8 +68,28 @@ class ImageSize:
         """Pixel area of image."""
         return self.width * self.height
 
+    @property
+    def w(self) -> int:
+        """Alias for width."""
+        return self.width
+
+    @w.setter
+    def w(self, w):
+        """Set width."""
+        self.width = w
+
+    @property
+    def h(self) -> int:
+        """Alias for height."""
+        return self.height
+
+    @h.setter
+    def h(self, h):
+        """Set height."""
+        self.height = h
+
     @classmethod
-    def from_np(cls, np_array: np.ndarray):
+    def from_np(cls, np_array: np.ndarray) -> Size:
         """Create instance from numpy array.
 
         Args:
@@ -70,3 +98,48 @@ class ImageSize:
         size = cls()
         size.height, size.width = np_array.shape[:2]
         return size
+
+    @classmethod
+    def calculate_new(
+        cls, orig_size: Size, scale: float = None, new_size: Size = None,
+    ) -> Size:
+        """Calculate new dimensions and maintain image aspect ratio.
+
+        Pct scale is given precedence over new size dims.
+
+        Args:
+            orig_size: Size object of original file dims
+            scale: Optional factor to scale by (0-1.0)
+            new_size: Optional Size object of desired new dims
+
+        Returns: Size object of correct proprotions for new size
+        """
+        calc_size = Size()
+        # TODO: add support for longest_dim and shortest_dim
+        LOG.info("Calculating size for original: %s", orig_size)
+        if scale is not None and scale > 0.0:
+            LOG.info("Scaling image by %f", scale)
+            calc_size.width = int(round(orig_size.width * scale))
+            calc_size.height = int(round(orig_size.height * scale))
+            LOG.info("New size: %s", calc_size)
+            return calc_size
+
+        if new_size is not None and new_size != calc_size:
+            if new_size.width > 0 and new_size.height > 0:
+                LOG.info("Both width and height provided; ")
+            elif new_size.width > 0 and new_size.height <= 0:
+                LOG.info("Calculating height based on width")
+                calc_size.width = new_size.width
+                calc_size.height = int(
+                    round((calc_size.width * orig_size.height) / orig_size.width)
+                )
+            elif new_size.height > 0 and new_size.width <= 0:
+                LOG.info("Calculating width based on height")
+                calc_size.height = new_size.height
+                calc_size.width = int(
+                    round((calc_size.height * orig_size.width) / orig_size.height)
+                )
+            LOG.info("New size: %s", calc_size)
+            return calc_size
+        LOG.info("No new width, height, or pct scale supplied; using current dims")
+        return orig_size

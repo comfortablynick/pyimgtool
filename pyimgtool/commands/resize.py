@@ -7,13 +7,13 @@ import logging
 import math
 import sys
 from functools import wraps
-from typing import Optional, Tuple
+from typing import Tuple
 import numpy as np
 import cv2
 
 from PIL import Image
 
-from pyimgtool.data_structures import ImageSize
+from pyimgtool.data_structures import Size
 from pyimgtool.exceptions import ImageSizeError
 
 LOG = logging.getLogger(__name__)
@@ -72,25 +72,27 @@ def _height_is_big_enough(image: Image, size: Tuple[int, int]) -> None:
 
 
 @validate(_is_big_enough)
-def resize_crop(image: Image, size: Tuple[int, int]) -> Image:
+def resize_crop(image: Image, size: Size) -> Image:
     """Crop the image with a centered rectangle of the specified size.
 
     Args:
         image: Pillow image instance
-        size: 2-Tuple of image dimensions (width, height)
+        size: Size object representing desired new size
 
     Returns: PIL Image
     """
     img_format = image.format
     image = image.copy()
-    old_size = image.size
-    left = (old_size[0] - size[0]) / 2
-    top = (old_size[1] - size[1]) / 2
-    right = old_size[0] - left
-    bottom = old_size[1] - top
+    orig_w, orig_h = image.size
+    LOG.debug(f"{size}")
+    left = (orig_w - size.w) / 2
+    top = (orig_h - size.h) / 2
+    right = orig_w - left
+    bottom = orig_h - top
     rect = [int(math.ceil(x)) for x in (left, top, right, bottom)]
+    LOG.debug("New rect size: %s", rect)
     left, top, right, bottom = rect
-    crop = image.crop((left, top, right, bottom))
+    crop = image.crop(rect)
     crop.format = img_format
     return crop
 
@@ -124,10 +126,10 @@ def resize_cover(image: Image, size: Tuple[int, int], resample=Image.LANCZOS) ->
 
 def resize_contain(
     image: Image,
-    size: Tuple[int, int],
+    size: Size,
     resample=Image.LANCZOS,
     bg_color: Tuple[int, int, int, int] = (255, 255, 255, 0),
-    bg_size: Tuple[int, int] = None,
+    bg_size: Size = None,
 ) -> Image:
     """Resize image to fill specified area.
 
@@ -146,12 +148,12 @@ def resize_contain(
     img_format = image.format
     img = image.copy()
     img.thumbnail(size, resample)
-    if not bg_size:
-        bg_size = size
-    background = Image.new("RGBA", bg_size, bg_color)
+    if bg_size is None:
+        bg_size = Size(*size)
+    background = Image.new("RGBA", (bg_size.width, bg_size.height), bg_color)
     img_position = (
-        int(math.ceil((bg_size[0] - img.size[0]) / 2)),
-        int(math.ceil((bg_size[1] - img.size[1]) / 2)),
+        int(math.ceil((bg_size.w - img.size[0]) / 2)),
+        int(math.ceil((bg_size.h - img.size[1]) / 2)),
     )
     background.paste(img, img_position)
     background.format = img_format
@@ -159,21 +161,21 @@ def resize_contain(
 
 
 @validate(_width_is_big_enough)
-def resize_width(image: Image, size: Tuple[int, int], resample=Image.LANCZOS) -> Image:
+def resize_width(image: Image, size: Size, resample=Image.LANCZOS) -> Image:
     """Resize image to according to specified width.
 
     Aspect ratio is kept intact.
 
     Args:
         image: Pillow image instance
-        size: 2-Tuple of dimension integers
+        size: Size object of desired size
         resample: Resample method
 
     Returns: PIL Image
     """
     img_format = image.format
     img = image.copy()
-    width = size[0]
+    width = size.width
     # If the origial image has already the good width, return it
     if img.width == width:
         return image
@@ -184,14 +186,14 @@ def resize_width(image: Image, size: Tuple[int, int], resample=Image.LANCZOS) ->
 
 
 @validate(_height_is_big_enough)
-def resize_height(image: Image, size: Tuple[int, int], resample=Image.LANCZOS) -> Image:
+def resize_height(image: Image, size: Size, resample=Image.LANCZOS) -> Image:
     """Resize image to according to specified height.
 
     Aspect ratio is kept intact.
 
     Args:
         image: Pillow image instance
-        size: 2-Tuple of dimension integers
+        size: Size object of desired size
         resample: Resample method
 
     Returns: PIL Image
@@ -199,7 +201,7 @@ def resize_height(image: Image, size: Tuple[int, int], resample=Image.LANCZOS) -
     img_format = image.format
     img = image.copy()
     # If the origial image has already the good height, return it
-    height = size[1]
+    height = size.height
     if img.height == height:
         return image
     new_width = int(math.ceil((height / img.height) * image.width))
@@ -208,14 +210,14 @@ def resize_height(image: Image, size: Tuple[int, int], resample=Image.LANCZOS) -
     return img
 
 
-def resize_thumbnail(image: Image, size: ImageSize, resample=Image.LANCZOS) -> Image:
+def resize_thumbnail(image: Image, size: Size, resample=Image.LANCZOS) -> Image:
     """Resize image to according to specified size.
 
     Aspect ratio is kept intact while trying best to match `size`.
 
     Args:
         image: Pillow image instance
-        size: ImageSize object of desired size
+        size: Size object of desired size
         resample: Resample method
 
     Returns: PIL Image
@@ -230,7 +232,7 @@ def resize(method, *args, **kwargs):
     Args:
         method: One among 'crop', 'cover', 'contain', 'width', 'height' or 'thumbnail'
         image: Pillow image instance
-        size: 2-tuple of integers [width, height]
+        size: Size object
     """
     valid_methods = ["crop", "cover", "contain", "width", "height", "thumbnail"]
     if method not in valid_methods:
@@ -242,12 +244,12 @@ def resize(method, *args, **kwargs):
     return getattr(sys.modules[__name__], method)(*args, **kwargs)
 
 
-def resize_opencv(im, size, resample=cv2.INTER_AREA):
+def resize_opencv(im: np.ndarray, size: Size, resample=cv2.INTER_AREA):
     """Resize with opencv, keeping ratio intact.
 
     Args:
         im: Numpy array
-        size: ImageSize
+        size: Image size
         resample: Resampling interpolation algorithm
 
     Returns: Resized image array
@@ -255,46 +257,3 @@ def resize_opencv(im, size, resample=cv2.INTER_AREA):
     LOG.debug("Resizing to %s", size)
     im = cv2.resize(im, (size.width, size.height), interpolation=resample)
     return im
-
-
-def calculate_new_size(
-    orig_size: ImageSize, scale: Optional[float], new_size: Optional[ImageSize] = None
-) -> ImageSize:
-    """Calculate new dimensions and maintain image aspect ratio.
-
-    Pct scale is given precedence over new size dims.
-
-    Args:
-        orig_size: ImageSize object of original file dims
-        scale: Optional factor to scale by (0-1.0)
-        new_size: Optional ImageSize object of desired new dims
-
-    Returns: ImageSize object of correct proprotions for new size
-    """
-    calc_size = ImageSize()
-    # TODO: add support for longest_dim and shortest_dim
-    LOG.info("Calculating size for original: %s", orig_size)
-    if scale is not None and scale > 0.0:
-        LOG.info("Scaling image by %f", scale)
-        calc_size.width = int(round(orig_size.width * scale))
-        calc_size.height = int(round(orig_size.height * scale))
-        LOG.info("New size: %s", calc_size)
-        return calc_size
-
-    if new_size is not None and new_size != calc_size:
-        if new_size.width > 0 and new_size.height <= 0:
-            LOG.info("Calculating height based on width")
-            calc_size.width = new_size.width
-            calc_size.height = int(
-                round((calc_size.width * orig_size.height) / orig_size.width)
-            )
-        elif new_size.height > 0 and new_size.width <= 0:
-            LOG.info("Calculating width based on height")
-            calc_size.height = new_size.height
-            calc_size.width = int(
-                round((calc_size.height * orig_size.width) / orig_size.height)
-            )
-        LOG.info("New size: %s", calc_size)
-        return calc_size
-    LOG.info("No new width, height, or pct scale supplied; using current dims")
-    return orig_size
