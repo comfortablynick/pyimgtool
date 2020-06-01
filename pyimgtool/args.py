@@ -140,6 +140,17 @@ def parse_args(args: List[str]) -> OrderedNamespace:
         action="store_true",
     )
 
+    # Mat
+    mat_cmd = commands.add_parser(
+        "mat", help="add a mat of a specific size for printing"
+    )
+    mat_cmd.add_argument(
+        "size",
+        help="size of mat, in inches",
+        metavar="SIZE",
+        choices=["letter", "8x10", "5x7"],
+    )
+
     # Resize
     resize_cmd = commands.add_parser("resize", help="resize image dimensions",)
     resize_cmd.add_argument(

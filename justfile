@@ -6,18 +6,21 @@ test_watermark_file := 'test/logo.png'
 test_full_watermark_file := 'test/logo_full.png'
 
 alias r := runargs
-alias run := runtest
+alias run := runcv
 alias h := help
-alias build := runtest # in case vim calls it
-alias install := runtest # in case vim calls it
+alias build := runcv # in case vim calls it
+alias install := runcv # in case vim calls it
 
 # Run with optional args
 runargs +args='':
 	{{bin_name}} {{test_file_in}} {{test_file_out}} {{args}}
 
 # test
-runtest:
-    {{bin_name}} -vv open {{test_file_in}} resize2 -s 0.4 save {{test_file_out2}} -f
+runpil:
+    {{bin_name}} -vv open {{test_file_in}} resize -s 0.4 save {{test_file_out}} -fk
+
+runcv:
+    {{bin_name}} -vv open {{test_file_in}} resize2 -s 0.4 save {{test_file_out2}} -fk
 
 # test text watermark
 runw +args='':

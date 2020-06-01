@@ -16,7 +16,7 @@ isort = "*"
 [packages]
 pillow = "*"
 piexif = "*"
-pyimgtool = {editable = true,path = "."}
+pyimgtool = {editable = true, path = "."}
 sty = "*"
 plotille = "*"
 opencv-python = "*"

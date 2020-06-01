@@ -17,7 +17,7 @@ from PIL import Image
 from sty import ef, fg, rs
 
 from pyimgtool.args import parse_args
-from pyimgtool.commands import resize, watermark
+from pyimgtool.commands import resize, watermark, mat
 from pyimgtool.data_structures import ImageSize
 from pyimgtool.utils import humanize_bytes
 
@@ -79,6 +79,8 @@ def main():
             LOG.info("Input dpi: %s", in_dpi)
             if arg.show_histogram:
                 print(generate_rgb_histogram(im))
+        elif cmd == "mat":
+            im = mat.create_mat(im, mat_size="letter")
         elif cmd == "resize":
             new_size = resize.calculate_new_size(
                 in_image_size, arg.scale, ImageSize(width=arg.width, height=arg.height),
