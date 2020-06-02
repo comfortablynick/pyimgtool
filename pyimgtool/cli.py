@@ -83,40 +83,48 @@ def main():
             im = mat.create_mat(im, mat_size="letter")
         elif cmd == "resize":
             resize_method = "thumbnail"
-            new_size = Size(arg.width, arg.height)
+            out_image_size = Size(arg.width, arg.height)
             if arg.width is not None and arg.height is not None:
                 resize_method = "crop"
-                new_size = Size(arg.width, arg.height)
-                if (
-                    new_size.width > in_image_size.width
-                    or new_size.height > in_image_size.height
-                ):
+                out_image_size = Size(arg.width, arg.height)
+                if out_image_size > in_image_size:
                     resize_method = "contain"
             elif arg.width is not None and arg.height is None:
                 resize_method = "width"
             elif arg.width is None and arg.height is not None:
                 resize_method = "height"
             else:
-                new_size = Size.calculate_new(
+                out_image_size = Size.calculate_new(
                     in_image_size, arg.scale, Size(width=arg.width, height=arg.height),
                 )
-            out_image_size = new_size
 
             # Resize/resample
-            im = resize.resize(
-                resize_method,
-                im,
-                out_image_size,
-                # bg_size=(out_image_size.width + 50, out_image_size.height + 50),
-                # resample=Image.ANTIALIAS,
-            )
+            im = resize.resize(resize_method, im, out_image_size,)
         elif cmd == "resize2":
-            out_image_size = Size.calculate_new(
-                in_image_size, arg.scale, Size(width=arg.width, height=arg.height),
-            )
             im = np.asarray(im)
             im = cv2.cvtColor(im, cv2.COLOR_RGB2BGR)
-            im = resize.resize_opencv(im, out_image_size)
+            out_image_size = Size(arg.width, arg.height)
+            resize_method = "thumbnail"
+            if arg.width is not None and arg.height is not None:
+                resize_method = "crop"
+                out_image_size = Size(arg.width, arg.height)
+                if out_image_size > in_image_size:
+                    resize_method = "contain"
+            elif arg.width is not None and arg.height is None:
+                resize_method = "width"
+            elif arg.width is None and arg.height is not None:
+                resize_method = "height"
+            else:
+                out_image_size = Size.calculate_new(
+                    in_image_size, arg.scale, Size(width=arg.width, height=arg.height),
+                )
+
+            # Resize/resample
+            im = resize.resize_opencv(resize_method, im, out_image_size,)
+            # im = resize.resize_thumbnail_opencv(im, out_image_size)
+            # calculate resulting size just to be sure
+            assert(im is not None)
+            out_image_size = Size.from_np(im)
         elif cmd == "text":
             im = watermark.with_text(
                 im,

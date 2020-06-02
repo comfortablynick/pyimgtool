@@ -1,10 +1,12 @@
 """Classes, enums, and misc data containers."""
 
 from __future__ import annotations
+
 import logging
 from dataclasses import dataclass
-
 from enum import Enum
+from typing import Tuple
+
 import numpy as np
 
 LOG = logging.getLogger(__name__)
@@ -59,9 +61,30 @@ class Size:
         for item in [self.width, self.height]:
             yield item
 
+    def __getitem__(self, item):
+        """Access class items by key or index."""
+        try:
+            return getattr(self, item)
+        except TypeError:
+            return tuple(self)[item]
+
     def __str__(self):
         """Return string representation, e.g.: width x height px."""
         return f"{self.width} x {self.height} px"
+
+    def __lt__(self, other):
+        return self.height < other.height or self.width < other.width
+
+    def __gt__(self, other):
+        return self.height > other.height or self.width > other.width
+
+    def __eq__(self, other):
+        return self.height == other.height and self.width == other.width
+
+    @property
+    def as_shape(self) -> Tuple[int, int]:
+        """Get as numpy shape (h, w)."""
+        return self.height, self.width
 
     @property
     def area(self) -> int:

@@ -189,13 +189,18 @@ def parse_args(args: List[str]) -> OrderedNamespace:
         "-s", "--scale", help="scale output size", metavar="SCALE", type=float,
     )
     resize2_cmd.add_argument(
+        "-W", "--width", help="absolute width of output", metavar="PX", type=int,
+    )
+    resize2_cmd.add_argument(
+        "-H", "--height", help="absolute height of output", metavar="PX", type=int,
+    )
+    resize2_cmd.add_argument(
         "-mw", "--max-width", help="maximum width of output", metavar="PX", type=int,
     )
     resize2_cmd.add_argument(
         "-mh",
         "--max-height",
         help="maximum height of output",
-        dest="height",
         metavar="PX",
         type=int,
     )
