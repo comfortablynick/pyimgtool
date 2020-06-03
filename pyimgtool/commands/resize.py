@@ -101,6 +101,20 @@ def _is_big_enough(image: Image, size: Size) -> None:
         raise ImageSizeError(image.size, size)
 
 
+def width_is_big_enough(im: np.ndarray, size: Size) -> None:
+    """Check that the image width is greater than desired width.
+
+    Args:
+        im: Numpy array
+        size: Size object
+
+    Raises:
+        ImageSizeError: if image width < size[0]
+    """
+    if size.width > (im_width := im.shape[1]):
+        raise ImageSizeError(im_width, size.width)
+
+
 def _width_is_big_enough(image: Image, size: Size) -> None:
     """Check that the image width is greater than desired width.
 
@@ -115,6 +129,20 @@ def _width_is_big_enough(image: Image, size: Size) -> None:
         raise ImageSizeError(image.size[0], width)
 
 
+def height_is_big_enough(im: np.ndarray, size: Size) -> None:
+    """Check that the image height is greater than desired height.
+
+    Args:
+        im: Numpy array
+        size: Tuple of width, height.
+
+    Raises:
+        ImageSizeError: if image height < size[1].
+    """
+    if size.height > (im_height := im.shape[0]):
+        raise ImageSizeError(im_height, size.height)
+
+
 def _height_is_big_enough(image: Image, size: Size) -> None:
     """Check that the image height is greater than desired height.
 
@@ -127,27 +155,6 @@ def _height_is_big_enough(image: Image, size: Size) -> None:
     """
     if (height := size.height) > image.size[1]:
         raise ImageSizeError(image.size[1], height)
-
-
-@check(is_big_enough)
-def resize_crop_opencv(im: np.ndarray, size: Size) -> np.ndarray:
-    """Crop the image with a centered rectangle of the specified size.
-
-    Args:
-        image: Numpy array image
-        size: Size object representing desired new size
-
-    Returns: Numpy array image, resized
-    """
-    orig_h, orig_w = im.shape[:2]
-    left = (orig_w - size.w) / 2
-    top = (orig_h - size.h) / 2
-    right = orig_w - left
-    bottom = orig_h - top
-    box = [int(math.ceil(x)) for x in (left, top, right, bottom)]
-    LOG.debug("Crop box size: %s", box)
-    crop = im[box[1] : box[3], box[0] : box[2]]
-    return crop
 
 
 @validate(_is_big_enough)
@@ -171,6 +178,27 @@ def resize_crop(image: Image, size: Size) -> Image:
     LOG.debug("New rect size: %s", rect)
     crop = image.crop(rect)
     crop.format = img_format
+    return crop
+
+
+@check(is_big_enough)
+def resize_crop_opencv(im: np.ndarray, size: Size) -> np.ndarray:
+    """Crop the image with a centered rectangle of the specified size.
+
+    Args:
+        image: Numpy array image
+        size: Size object representing desired new size
+
+    Returns: Numpy array image, resized
+    """
+    orig_h, orig_w = im.shape[:2]
+    left = (orig_w - size.w) / 2
+    top = (orig_h - size.h) / 2
+    right = orig_w - left
+    bottom = orig_h - top
+    box = [int(math.ceil(x)) for x in (left, top, right, bottom)]
+    LOG.debug("Crop box size: %s", box)
+    crop = im[box[1] : box[3], box[0] : box[2]]
     return crop
 
 
@@ -201,7 +229,7 @@ def resize_cover(image: Image, size: Size, resample=Image.LANCZOS) -> Image:
     return img
 
 
-@validate(_is_big_enough)
+@check(is_big_enough)
 def resize_cover_opencv(
     im: np.ndarray, size: Size, resample=cv2.INTER_AREA
 ) -> np.ndarray:
@@ -312,16 +340,17 @@ def resize_width(image: Image, size: Size, resample=Image.LANCZOS) -> Image:
     """
     img_format = image.format
     img = image.copy()
-    width = size.width
     # If the origial image has already the good width, return it
-    if img.width == width:
+    if img.width == size.width:
         return image
-    new_height = int(math.ceil((width / img.width) * img.height))
-    img.thumbnail((width, new_height), resample)
+    size.height = int(math.ceil((size.width / img.width) * img.height))
+    LOG.debug("resize_width() with size: %s", size)
+    img.thumbnail(size, resample)
     img.format = img_format
     return img
 
 
+@check(width_is_big_enough)
 def resize_width_opencv(
     im: np.ndarray, size: Size, resample=cv2.INTER_AREA
 ) -> np.ndarray:
@@ -336,6 +365,7 @@ def resize_width_opencv(
 
     Returns: Numpy array
     """
+    LOG.debug("Resample: %d", resample)
     orig_h, orig_w = im.shape[:2]
     # If the origial image has already the good width, return it
     if orig_w == size.width:
@@ -367,6 +397,28 @@ def resize_height(image: Image, size: Size, resample=Image.LANCZOS) -> Image:
     img.thumbnail((new_width, height), resample)
     img.format = img_format
     return img
+
+
+@check(height_is_big_enough)
+def resize_height_opencv(im: np.ndarray, size: Size, resample=cv2.INTER_AREA) -> Image:
+    """Resize image to according to specified height.
+
+    Aspect ratio is kept intact.
+
+    Args:
+        im: Numpy array
+        size: Size object of desired size
+        resample: Resample method
+
+    Returns: Numpy array
+    """
+    orig_h, orig_w = im.shape[:2]
+    # If the origial image has already the good height, return it
+    height = size.height
+    if orig_h == height:
+        return im
+    new_width = int(math.ceil((height / orig_h) * orig_w))
+    return cv2.resize(im, (new_width, height), resample)
 
 
 def resize_thumbnail(image: Image, size: Size, resample=Image.LANCZOS) -> Image:
@@ -445,6 +497,7 @@ def resize_opencv(method, *args, **kwargs):
         x for x in globals().keys() if x.endswith("opencv") and x != "resize_opencv"
     ]
     LOG.info("Resizing with %s()", method)
+    LOG.debug("resize_opencv() args: %s", kwargs)
     try:
         return getattr(sys.modules[__name__], method)(*args, **kwargs)
     except AttributeError:

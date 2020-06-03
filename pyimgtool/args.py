@@ -168,15 +168,16 @@ def parse_args(args: List[str]) -> OrderedNamespace:
         "-H", "--height", help="absolute height of output", metavar="PX", type=int,
     )
     resize_cmd.add_argument(
-        "-mw", "--max-width", help="maximum width of output", metavar="PX", type=int,
-    )
-    resize_cmd.add_argument(
-        "-mh", "--max-height", help="maximum height of output", metavar="PX", type=int,
-    )
-    resize_cmd.add_argument(
-        "-ld",
-        "--longest-dim",
+        "-L",
+        "--longest",
         help="longest dimension of output",
+        metavar="PX",
+        type=int,
+    )
+    resize_cmd.add_argument(
+        "-S",
+        "--shortest",
+        help="shortest dimension of output",
         metavar="PX",
         type=int,
     )
@@ -195,19 +196,16 @@ def parse_args(args: List[str]) -> OrderedNamespace:
         "-H", "--height", help="absolute height of output", metavar="PX", type=int,
     )
     resize2_cmd.add_argument(
-        "-mw", "--max-width", help="maximum width of output", metavar="PX", type=int,
-    )
-    resize2_cmd.add_argument(
-        "-mh",
-        "--max-height",
-        help="maximum height of output",
+        "-L",
+        "--longest",
+        help="longest dimension of output",
         metavar="PX",
         type=int,
     )
     resize2_cmd.add_argument(
-        "-ld",
-        "--longest-dim",
-        help="longest dimension of output",
+        "-S",
+        "--shortest",
+        help="shortest dimension of output",
         metavar="PX",
         type=int,
     )

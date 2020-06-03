@@ -128,7 +128,7 @@ class Size:
     ) -> Size:
         """Calculate new dimensions and maintain image aspect ratio.
 
-        Pct scale is given precedence over new size dims.
+        Scale is given precedence over new size dims.
 
         Args:
             orig_size: Size object of original file dims

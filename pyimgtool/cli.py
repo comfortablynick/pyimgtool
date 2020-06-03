@@ -7,7 +7,7 @@ from io import BytesIO
 from pathlib import Path
 from pprint import pformat
 from time import perf_counter
-from typing import Dict, Optional
+from typing import Dict, Optional, Tuple
 
 import numpy as np
 import cv2
@@ -16,7 +16,7 @@ import plotille
 from PIL import Image
 from sty import ef, fg, rs
 
-from pyimgtool.args import parse_args
+from pyimgtool.args import parse_args, OrderedNamespace
 from pyimgtool.commands import resize, watermark, mat
 from pyimgtool.data_structures import Size
 from pyimgtool.utils import humanize_bytes
@@ -75,55 +75,25 @@ def main():
                 in_dpi = im.info["dpi"]
             except KeyError:
                 pass
-            LOG.info("Input size: %s", humanize_bytes(in_file_size))
+            LOG.info("Input file size: %s", humanize_bytes(in_file_size))
             LOG.info("Input dpi: %s", in_dpi)
             if arg.show_histogram:
                 print(generate_rgb_histogram(im))
         elif cmd == "mat":
             im = mat.create_mat(im, mat_size="letter")
         elif cmd == "resize":
-            resize_method = "thumbnail"
-            out_image_size = Size(arg.width, arg.height)
-            if arg.width is not None and arg.height is not None:
-                resize_method = "crop"
-                out_image_size = Size(arg.width, arg.height)
-                if out_image_size > in_image_size:
-                    resize_method = "contain"
-            elif arg.width is not None and arg.height is None:
-                resize_method = "width"
-            elif arg.width is None and arg.height is not None:
-                resize_method = "height"
-            else:
-                out_image_size = Size.calculate_new(
-                    in_image_size, arg.scale, Size(width=arg.width, height=arg.height),
-                )
-
+            resize_method, new_size = get_resize_method(Size(*im.size), arg)
             # Resize/resample
-            im = resize.resize(resize_method, im, out_image_size,)
+            im = resize.resize(resize_method, im, new_size,)
+            out_image_size = Size(*im.size)
         elif cmd == "resize2":
             im = np.asarray(im)
             im = cv2.cvtColor(im, cv2.COLOR_RGB2BGR)
-            out_image_size = Size(arg.width, arg.height)
-            resize_method = "thumbnail"
-            if arg.width is not None and arg.height is not None:
-                resize_method = "crop"
-                out_image_size = Size(arg.width, arg.height)
-                if out_image_size > in_image_size:
-                    resize_method = "contain"
-            elif arg.width is not None and arg.height is None:
-                resize_method = "width"
-            elif arg.width is None and arg.height is not None:
-                resize_method = "height"
-            else:
-                out_image_size = Size.calculate_new(
-                    in_image_size, arg.scale, Size(width=arg.width, height=arg.height),
-                )
 
+            resize_method, new_size = get_resize_method(Size.from_np(im), arg)
             # Resize/resample
-            im = resize.resize_opencv(resize_method, im, out_image_size,)
-            # im = resize.resize_thumbnail_opencv(im, out_image_size)
-            # calculate resulting size just to be sure
-            assert(im is not None)
+            im = resize.resize_opencv(resize_method, im, new_size, resample=cv2.INTER_LANCZOS4)
+            assert im is not None
             out_image_size = Size.from_np(im)
         elif cmd == "text":
             im = watermark.with_text(
@@ -228,6 +198,57 @@ def main():
                     out_file_size = os.path.getsize(out_file_path)
 
     time_end = perf_counter()
+    elapsed = time_end - time_start
+    report = generate_report(
+        in_file_size,
+        out_file_size,
+        in_file_path,
+        out_file_path,
+        in_image_size,
+        out_image_size,
+        elapsed,
+        no_op,
+    )
+    print(report)
+
+
+def generate_report(
+    in_file_size: int,
+    out_file_size: int,
+    in_file_path: str,
+    out_file_path: str,
+    in_image_size: Size,
+    out_image_size: Size,
+    elapsed_time: float,
+    no_op: bool = False,
+) -> str:
+    """
+    Generate report to display on terminal after processing.
+
+    Parameters
+    ----------
+    in_file_size : int
+        File size, in bytes, of original file.
+    out_file_size : int
+        File size, in bytes, of edited file.
+    in_file_path : str
+        Original file path.
+    out_file_path : str
+        New file path.
+    in_image_size : Size
+        Original image size.
+    out_image_size : Size
+        Edited image size.
+    elapsed_time : float
+        Elapsed time from perf_counter() of editing operations.
+    no_op : bool
+        Dry run; no image is being saved.
+
+    Returns
+    -------
+    str:
+        Report text
+    """
     size_reduction_bytes = in_file_size - out_file_size
     no_op_msg = "**Image not saved due to -n flag; reporting only**"
     report_title = " Processing Summary "
@@ -260,7 +281,7 @@ def main():
             f"({(size_reduction_bytes/in_file_size) * 100:2.1f}%)",
         ]
     )
-    report.append(["Processing Time:", f"{(time_end - time_start)*1000:.1f} ms"])
+    report.append(["Processing Time:", f"{elapsed_time*1000:.1f} ms"])
     for c in report:
         for n in range(4):
             try:
@@ -289,17 +310,69 @@ def main():
             + f"{line[2]:{col2w}} {ef.i}{line[3]:{col3w}}{rs.all}"
         )
     out.append(f"{ef.b}{report_end:{'-'}^{col0w + col1w + col2w + col3w + 1}}{rs.all}")
-    print(*out, sep="\n")
+    return "\n".join(out)
+
+
+def get_resize_method(orig_size: Size, arg: OrderedNamespace) -> Tuple[str, Size]:
+    """Determine which resize method to use and the resulting size.
+
+    Parameters
+    ----------
+    orig_size
+        Size of image before processing.
+    arg
+        Namespace of resize command arguments.
+
+    Returns
+    -------
+    Tuple[str, Size]:
+        Resize method and new :py:class:`Size` object.
+    """
+    new_size = Size(arg.width, arg.height)
+    resize_method = "thumbnail"
+    if arg.longest is not None:
+        if orig_size.width >= orig_size.height:
+            resize_method = "width"
+            new_size = Size(arg.longest, 0)
+        else:
+            resize_method = "height"
+            new_size = Size(0, arg.longest)
+    elif arg.shortest is not None:
+        if orig_size.width <= orig_size.height:
+            resize_method = "width"
+            new_size = Size(arg.shortest, 0)
+        else:
+            resize_method = "height"
+            new_size = Size(0, arg.shortest)
+    elif arg.width is not None and arg.height is not None:
+        resize_method = "crop"
+        if new_size > orig_size:
+            resize_method = "contain"
+    elif arg.width is not None and arg.height is None:
+        resize_method = "width"
+    elif arg.width is None and arg.height is not None:
+        resize_method = "height"
+    else:
+        new_size = Size.calculate_new(
+            orig_size, arg.scale, Size(width=arg.width, height=arg.height),
+        )
+    return resize_method, new_size
 
 
 def generate_rgb_histogram(im: Image, show_axes: bool = False) -> str:
-    """Return string of histogram for image to print in terminal.
+    """Generate histogram for terminal.
 
-    Args:
-        im: PIL Image object
-        show_axes: Print x and y axes
+    Parameters
+    ----------
+    im
+        Image to evaluate
+    show_axes
+        Show x and y axis labels
 
-    Returns: String of histscalee
+    Returns
+    -------
+    str:
+        Histogram to print
     """
     hist_width = 50
     hist_height = 10
