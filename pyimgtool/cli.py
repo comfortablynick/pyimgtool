@@ -80,7 +80,8 @@ def main():
             if arg.show_histogram:
                 print(generate_rgb_histogram(im))
         elif cmd == "mat":
-            im = mat.create_mat(im, mat_size="letter")
+            im = mat.create_mat(im, mat_size="letter", portrait=arg.portrait)
+            out_image_size = Size.from_np(im)
         elif cmd == "resize":
             resize_method, new_size = get_resize_method(Size(*im.size), arg)
             # Resize/resample
@@ -89,10 +90,13 @@ def main():
         elif cmd == "resize2":
             im = np.asarray(im)
             im = cv2.cvtColor(im, cv2.COLOR_RGB2BGR)
-
-            resize_method, new_size = get_resize_method(Size.from_np(im), arg)
-            # Resize/resample
-            im = resize.resize_opencv(resize_method, im, new_size, resample=cv2.INTER_LANCZOS4)
+            orig_size = Size.from_np(im)
+            resize_method, new_size = get_resize_method(orig_size, arg)
+            if new_size != orig_size:
+                # Resize/resample
+                im = resize.resize_opencv(resize_method, im, new_size, resample=cv2.INTER_LANCZOS4)
+            else:
+                LOG.info("Resize not needed")
             assert im is not None
             out_image_size = Size.from_np(im)
         elif cmd == "text":

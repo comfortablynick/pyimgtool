@@ -150,6 +150,9 @@ def parse_args(args: List[str]) -> OrderedNamespace:
         metavar="SIZE",
         choices=["letter", "8x10", "5x7"],
     )
+    mat_cmd.add_argument(
+        "-p", "--portrait", help="use portrait orientation", action="store_true"
+    )
 
     # Resize
     resize_cmd = commands.add_parser("resize", help="resize image dimensions",)
@@ -168,18 +171,10 @@ def parse_args(args: List[str]) -> OrderedNamespace:
         "-H", "--height", help="absolute height of output", metavar="PX", type=int,
     )
     resize_cmd.add_argument(
-        "-L",
-        "--longest",
-        help="longest dimension of output",
-        metavar="PX",
-        type=int,
+        "-L", "--longest", help="longest dimension of output", metavar="PX", type=int,
     )
     resize_cmd.add_argument(
-        "-S",
-        "--shortest",
-        help="shortest dimension of output",
-        metavar="PX",
-        type=int,
+        "-S", "--shortest", help="shortest dimension of output", metavar="PX", type=int,
     )
 
     # Resize2
@@ -196,18 +191,10 @@ def parse_args(args: List[str]) -> OrderedNamespace:
         "-H", "--height", help="absolute height of output", metavar="PX", type=int,
     )
     resize2_cmd.add_argument(
-        "-L",
-        "--longest",
-        help="longest dimension of output",
-        metavar="PX",
-        type=int,
+        "-L", "--longest", help="longest dimension of output", metavar="PX", type=int,
     )
     resize2_cmd.add_argument(
-        "-S",
-        "--shortest",
-        help="shortest dimension of output",
-        metavar="PX",
-        type=int,
+        "-S", "--shortest", help="shortest dimension of output", metavar="PX", type=int,
     )
 
     # Watermark

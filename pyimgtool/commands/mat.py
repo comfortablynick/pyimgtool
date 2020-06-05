@@ -6,7 +6,7 @@ import numpy as np
 LOG = logging.getLogger(__name__)
 
 
-def create_mat(im: np.ndarray, mat_size: str = "letter", dpi=300) -> np.ndarray:
+def create_mat(im: np.ndarray, mat_size: str = "letter", dpi=300, portrait=False) -> np.ndarray:
     """Paste image onto mat of a specified size.
 
     Args:
@@ -23,6 +23,8 @@ def create_mat(im: np.ndarray, mat_size: str = "letter", dpi=300) -> np.ndarray:
     else:
         mh = 5000
         mw = 5000
+    if portrait:
+        mw, mh = mh, mw
     mat = 255 * np.ones((mh, mw, c), dtype=np.uint8)
     xx = (mw - w) // 2
     yy = (mh - h) // 2
