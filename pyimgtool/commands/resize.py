@@ -16,7 +16,7 @@ from PIL.Image import Image as PILImage
 
 from pyimgtool.data_structures import Size
 from pyimgtool.commands.mat import create_mat
-from pyimgtool.exceptions import ImageSizeError
+from pyimgtool.exceptions import ImageTooSmallError, ResizeNotNeededError
 
 LOG = logging.getLogger(__name__)
 
@@ -25,11 +25,11 @@ def validate(validator):
     """Return a decorator that validates arguments with provided `validator` function.
 
     This will also store the validator function as `func.validate`.
-    The decorator returned by this function, can bypass the validator
-    if `validate=False` is passed as argument otherwise the fucntion is
+    The decorator returned by this function can bypass the validator
+    if `validate=False` is passed as argument; otherwise, the function is
     called directly.
 
-    The validator must raise an exception, if the function can not
+    The validator must raise an exception if the function can not
     be called.
     """
 
@@ -37,10 +37,12 @@ def validate(validator):
         """Bound decorator to a particular validator function."""
 
         @wraps(func)
-        def wrapper(image, size, validate=True, *args, **kwargs):
+        def wrapper(
+            im: Union[np.ndarray, PILImage], size: Size, validate=True, *args, **kwargs
+        ):
             if validate:
-                validator(image, size)
-            return func(image, size, *args, **kwargs)
+                validator(im, size)
+            return func(im, size, *args, **kwargs)
 
         return wrapper
 
@@ -55,11 +57,11 @@ def is_big_enough(im: Union[np.ndarray, PILImage], size: Size) -> None:
         size: Size object
 
     Raises:
-        ImageSizeError: if image size < `size`
+        ImageTooSmallError: if image size < `size`
     """
     h, w = im.shape[:2] if type(im) == np.ndarray else im.size[::-1]
     if (size.w > w) and (size.h > h):
-        raise ImageSizeError((w, h), size)
+        raise ImageTooSmallError((w, h), size)
 
 
 def width_is_big_enough(im: Union[np.ndarray, PILImage], size: Size) -> None:
@@ -70,11 +72,11 @@ def width_is_big_enough(im: Union[np.ndarray, PILImage], size: Size) -> None:
         size: Size object
 
     Raises:
-        ImageSizeError: if image width < size[0]
+        ImageTooSmallError: if image width < size[0]
     """
     im_width = im.shape[1] if type(im) == np.ndarray else im.width
     if size.width > im_width:
-        raise ImageSizeError(im_width, size.width)
+        raise ImageTooSmallError(im_width, size.width)
 
 
 def height_is_big_enough(im: Union[np.ndarray, PILImage], size: Size) -> None:
@@ -85,11 +87,11 @@ def height_is_big_enough(im: Union[np.ndarray, PILImage], size: Size) -> None:
         size: Tuple of width, height.
 
     Raises:
-        ImageSizeError: if image height < size.height.
+        ImageTooSmallError: if image height < size.height.
     """
     im_height = im.shape[0] if type(im) == np.ndarray else im.height
     if size.height > im_height:
-        raise ImageSizeError(im_height, size.height)
+        raise ImageTooSmallError(im_height, size.height)
 
 
 @validate(is_big_enough)
@@ -117,7 +119,9 @@ def resize_crop(image: PILImage, size: Size) -> PILImage:
 
 
 @validate(is_big_enough)
-def resize_crop_opencv(im: np.ndarray, size: Size, resample=cv2.INTER_AREA) -> np.ndarray:
+def resize_crop_opencv(
+    im: np.ndarray, size: Size, resample=cv2.INTER_AREA
+) -> np.ndarray:
     """Crop the image with a centered rectangle of the specified size.
 
     Args:
@@ -259,8 +263,8 @@ def resize_contain_opencv(
         bg_size = size
     h, w, c = im.shape
     mat = 255 * np.ones((size.h, size.w, c), dtype=np.uint8)
-    xx = (size.w - w) // 2
-    yy = (size.h - h) // 2
+    xx = int(math.ceil((size.w - w) / 2))
+    yy = int(math.ceil((size.h - h) / 2))
     mat[yy : yy + h, xx : xx + w] = im
     return mat.copy()
 
@@ -280,10 +284,7 @@ def resize_width(image: PILImage, size: Size, resample=Image.LANCZOS) -> PILImag
     """
     img_format = image.format
     img = image.copy()
-    # If the origial image has already the good width, return it
-    if img.width == size.width:
-        return image
-    size.height = int(math.ceil((size.width / img.width) * img.height))
+    size.height = int(max((size.width / img.width) * img.height, 1))
     LOG.debug("resize_width() with size: %s", size)
     img.thumbnail(size, resample)
     img.format = img_format
@@ -305,13 +306,10 @@ def resize_width_opencv(
 
     Returns: Numpy array
     """
-    LOG.debug("Resample: %d", resample)
     orig_h, orig_w = im.shape[:2]
-    # If the origial image has already the good width, return it
-    if orig_w == size.width:
-        return im
-    new_height = int(math.ceil((size.width / orig_w) * orig_h))
-    return cv2.resize(im, (size.width, new_height), interpolation=resample)
+    r = size.width / float(orig_w)
+    dim = size.width, int(orig_h * r)
+    return cv2.resize(im, dim, interpolation=resample)
 
 
 @validate(height_is_big_enough)
@@ -329,10 +327,7 @@ def resize_height(image: PILImage, size: Size, resample=Image.LANCZOS) -> PILIma
     """
     img_format = image.format
     img = image.copy()
-    # If the origial image has already the good height, return it
     height = size.height
-    if img.height == height:
-        return image
     new_width = int(math.ceil((height / img.height) * image.width))
     img.thumbnail((new_width, height), resample)
     img.format = img_format
@@ -355,14 +350,12 @@ def resize_height_opencv(
     Returns: Numpy array
     """
     orig_h, orig_w = im.shape[:2]
-    # If the origial image has already the good height, return it
-    height = size.height
-    if orig_h == height:
-        return im
-    new_width = int(math.ceil((height / orig_h) * orig_w))
-    return cv2.resize(im, (new_width, height), resample)
+    r = size.height / float(orig_h)
+    dim = int(orig_w * r), size.height
+    return cv2.resize(im, dim, resample)
 
 
+@validate(is_big_enough)
 def resize_thumbnail(image: PILImage, size: Size, resample=Image.LANCZOS) -> PILImage:
     """Resize image to according to specified size.
 
@@ -379,6 +372,7 @@ def resize_thumbnail(image: PILImage, size: Size, resample=Image.LANCZOS) -> PIL
     return image
 
 
+@validate(is_big_enough)
 def resize_thumbnail_opencv(
     im: np.ndarray, size: Size, resample=cv2.INTER_AREA
 ) -> PILImage:
@@ -439,10 +433,73 @@ def resize_opencv(method, *args, **kwargs):
         x for x in globals().keys() if x.endswith("opencv") and x != "resize_opencv"
     ]
     LOG.info("Resizing with %s()", method)
-    LOG.debug("resize_opencv() args: %s", kwargs)
     try:
         return getattr(sys.modules[__name__], method)(*args, **kwargs)
     except AttributeError:
         LOG.critical(
             f"Invalid method '{method}'; should be one of {', '.join(valid_methods)}"
         )
+
+
+def get_method(
+    orig_size: Size, width=None, height=None, scale=None, longest=None, shortest=None
+) -> Tuple[str, Size]:
+    """Determine which resize method to use based on calculated size.
+
+    Parameters
+    ----------
+    width
+        Width parameter from cli
+    height
+        Height parameter from cli
+    new_size
+        Size parameter from cli
+    scale
+        Scale parameter from cli
+    longest
+        Longest size parameter
+    shortest
+        Shortest size parameter
+
+    Returns
+    -------
+    Tuple[str, Size]:
+        Resize method, calculated size
+    """
+    resize_method = "thumbnail"
+    new_size = Size(width, height)
+    if longest is not None:
+        if orig_size.width >= orig_size.height:
+            resize_method = "width"
+            new_size.width = longest
+        else:
+            resize_method = "height"
+            new_size.height = longest
+    elif shortest is not None:
+        if orig_size.width <= orig_size.height:
+            resize_method = "width"
+            new_size.width = shortest
+        else:
+            resize_method = "height"
+            new_size.height = shortest
+    elif width is not None and height is not None:
+        resize_method = "crop"
+        if new_size > orig_size:
+            resize_method = "contain"
+    elif width is not None and height is None:
+        resize_method = "width"
+    elif width is None and height is not None:
+        resize_method = "height"
+    else:
+        new_size = Size.calculate_new(orig_size, scale, new_size,)
+    new_size.width = orig_size.width if None else new_size.width
+    new_size.height = orig_size.height if None else new_size.height
+    LOG.debug(
+        "Original size: %s; New size: %s; Resize method: %s",
+        orig_size,
+        new_size,
+        resize_method,
+    )
+    if new_size == orig_size:
+        raise ResizeNotNeededError
+    return resize_method, new_size

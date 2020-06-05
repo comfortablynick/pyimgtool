@@ -7,7 +7,7 @@ from io import BytesIO
 from pathlib import Path
 from pprint import pformat
 from time import perf_counter
-from typing import Dict, Optional, Tuple
+from typing import Dict, Optional
 
 import numpy as np
 import cv2
@@ -16,9 +16,10 @@ import plotille
 from PIL import Image
 from sty import ef, fg, rs
 
-from pyimgtool.args import parse_args, OrderedNamespace
+from pyimgtool.args import parse_args
 from pyimgtool.commands import resize, watermark, mat
 from pyimgtool.data_structures import Size
+from pyimgtool.exceptions import ResizeNotNeededError, ImageTooSmallError
 from pyimgtool.utils import humanize_bytes
 
 logging.basicConfig(level=logging.WARNING)
@@ -83,22 +84,47 @@ def main():
             im = mat.create_mat(im, mat_size="letter", portrait=arg.portrait)
             out_image_size = Size.from_np(im)
         elif cmd == "resize":
-            resize_method, new_size = get_resize_method(Size(*im.size), arg)
-            # Resize/resample
-            im = resize.resize(resize_method, im, new_size,)
-            out_image_size = Size(*im.size)
+            orig_size = Size(*im.size)
+            out_image_size = orig_size
+            try:
+                resize_method, new_size = resize.get_method(
+                    orig_size,
+                    width=arg.width,
+                    height=arg.height,
+                    scale=arg.scale,
+                    longest=arg.longest,
+                    shortest=arg.shortest,
+                )
+            except ResizeNotNeededError:
+                LOG.warning("Resize not needed")
+            else:
+                # Resize/resample
+                im = resize.resize(resize_method, im, new_size,)
+                out_image_size = Size(*im.size)
         elif cmd == "resize2":
             im = np.asarray(im)
             im = cv2.cvtColor(im, cv2.COLOR_RGB2BGR)
             orig_size = Size.from_np(im)
-            resize_method, new_size = get_resize_method(orig_size, arg)
-            if new_size != orig_size:
-                # Resize/resample
-                im = resize.resize_opencv(resize_method, im, new_size, resample=cv2.INTER_LANCZOS4)
+            out_image_size = orig_size
+            y, x = im.shape[:2]
+            try:
+                resize_method, new_size = resize.get_method(
+                    orig_size,
+                    width=arg.width,
+                    height=arg.height,
+                    scale=arg.scale,
+                    longest=arg.longest,
+                    shortest=arg.shortest,
+                )
+            except ImageTooSmallError as e:
+                LOG.warning("%s", e)
+            except ResizeNotNeededError:
+                LOG.warning("Resize not needed")
             else:
-                LOG.info("Resize not needed")
-            assert im is not None
-            out_image_size = Size.from_np(im)
+                im = resize.resize_opencv(
+                    resize_method, im, new_size, resample=cv2.INTER_LANCZOS4
+                )
+                out_image_size = Size.from_np(im)
         elif cmd == "text":
             im = watermark.with_text(
                 im,
@@ -315,52 +341,6 @@ def generate_report(
         )
     out.append(f"{ef.b}{report_end:{'-'}^{col0w + col1w + col2w + col3w + 1}}{rs.all}")
     return "\n".join(out)
-
-
-def get_resize_method(orig_size: Size, arg: OrderedNamespace) -> Tuple[str, Size]:
-    """Determine which resize method to use and the resulting size.
-
-    Parameters
-    ----------
-    orig_size
-        Size of image before processing.
-    arg
-        Namespace of resize command arguments.
-
-    Returns
-    -------
-    Tuple[str, Size]:
-        Resize method and new :py:class:`Size` object.
-    """
-    new_size = Size(arg.width, arg.height)
-    resize_method = "thumbnail"
-    if arg.longest is not None:
-        if orig_size.width >= orig_size.height:
-            resize_method = "width"
-            new_size = Size(arg.longest, 0)
-        else:
-            resize_method = "height"
-            new_size = Size(0, arg.longest)
-    elif arg.shortest is not None:
-        if orig_size.width <= orig_size.height:
-            resize_method = "width"
-            new_size = Size(arg.shortest, 0)
-        else:
-            resize_method = "height"
-            new_size = Size(0, arg.shortest)
-    elif arg.width is not None and arg.height is not None:
-        resize_method = "crop"
-        if new_size > orig_size:
-            resize_method = "contain"
-    elif arg.width is not None and arg.height is None:
-        resize_method = "width"
-    elif arg.width is None and arg.height is not None:
-        resize_method = "height"
-    else:
-        new_size = Size.calculate_new(
-            orig_size, arg.scale, Size(width=arg.width, height=arg.height),
-        )
-    return resize_method, new_size
 
 
 def generate_rgb_histogram(im: Image, show_axes: bool = False) -> str:

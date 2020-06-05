@@ -1,7 +1,7 @@
 """Custom exceptions for pyimgtool."""
 
 
-class ImageSizeError(Exception):
+class ImageTooSmallError(Exception):
     """Raised when the supplied image does not fit the intial size requirements."""
 
     def __init__(self, actual_size, required_size):
@@ -16,3 +16,9 @@ class ImageSizeError(Exception):
     def __str__(self):
         """Return string representation."""
         return repr(self.message)
+
+
+class ResizeNotNeededError(Exception):
+    """Raised when current image size matches new size."""
+
+    pass

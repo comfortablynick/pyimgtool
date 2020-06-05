@@ -52,7 +52,7 @@ class Size:
         height: Height of image (None -> 0)
     """
 
-    def __init__(self, width: int = 0, height: int = 0):
+    def __init__(self, width: int = None, height: int = None):
         self.width = width if width is not None else 0
         self.height = height if height is not None else 0
 
@@ -138,7 +138,6 @@ class Size:
         Returns: Size object of correct proprotions for new size
         """
         calc_size = Size()
-        # TODO: add support for longest_dim and shortest_dim
         LOG.info("Calculating size for original: %s", orig_size)
         if scale is not None and scale > 0.0:
             LOG.info("Scaling image by %f", scale)
@@ -146,10 +145,10 @@ class Size:
             calc_size.height = int(round(orig_size.height * scale))
             LOG.info("New size: %s", calc_size)
             return calc_size
-
-        if new_size is not None and new_size != calc_size:
+        if new_size is not None:
             if new_size.width > 0 and new_size.height > 0:
                 LOG.info("Both width and height provided; ")
+                calc_size = new_size
             elif new_size.width > 0 and new_size.height <= 0:
                 LOG.info("Calculating height based on width")
                 calc_size.width = new_size.width
