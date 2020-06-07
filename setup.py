@@ -37,7 +37,7 @@ setup(
     version=find_version("pyimgtool/version.py"),
     author="Nick Murphy",
     author_email="comfortablynick@gmail.com",
-    description="Tool to help prep images for web sharing",
+    description="Tool to help prep images for web sharing and printing",
     long_description=get_long_description("README.md"),
     long_description_content_type="text/markdown",
     url="https://github.com/comfortablynick/pyimgtool",
@@ -46,7 +46,6 @@ setup(
     install_requires=[
         "pillow",
         "piexif",
-        "attrs",
         "sty",
         "opencv-python",
         "numpy",
