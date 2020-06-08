@@ -146,7 +146,7 @@ def resize_crop_opencv(
     return crop
 
 
-@validate(is_big_enough)
+# @validate(is_big_enough)
 def resize_cover(image: PILImage, size: Size, resample=Image.LANCZOS) -> PILImage:
     """Resize image to fill the specified area; crop as needed.
 
@@ -162,7 +162,7 @@ def resize_cover(image: PILImage, size: Size, resample=Image.LANCZOS) -> PILImag
     img_format = image.format
     img = image.copy()
     img_size = Size(img.size)
-    ratio = max(size.w / img_size.w, size.h / img_size.h)
+    ratio = max((size.w / img_size.w), (size.h / img_size.h))
     new_size = (
         int(math.ceil(img_size.w * ratio)),
         int(math.ceil(img_size.h * ratio)),
@@ -173,7 +173,7 @@ def resize_cover(image: PILImage, size: Size, resample=Image.LANCZOS) -> PILImag
     return img
 
 
-@validate(is_big_enough)
+# @validate(is_big_enough)
 def resize_cover_opencv(
     im: np.ndarray, size: Size, resample=cv2.INTER_AREA
 ) -> np.ndarray:
@@ -223,8 +223,7 @@ def resize_contain(
     Returns: PIL Image
     """
     img_format = image.format
-    img = image.copy()
-    img.thumbnail(size, resample)
+    img = resize_thumbnail(image, size, resample=resample, validate=False)
     if bg_size is None:
         bg_size = size
     background = Image.new("RGBA", tuple(bg_size), bg_color)
@@ -258,7 +257,7 @@ def resize_contain_opencv(
 
     Returns: Numpy array
     """
-    im = resize_thumbnail_opencv(im, size)
+    im = resize_thumbnail_opencv(im, size, resample=resample, validate=False)
     if bg_size is None:
         bg_size = size
     h, w, c = im.shape
@@ -468,6 +467,8 @@ def get_method(
     """
     resize_method = "thumbnail"
     new_size = Size(width, height)
+    # if new_size == orig_size:
+    #     raise ResizeNotNeededError
     if longest is not None:
         if orig_size.width >= orig_size.height:
             resize_method = "width"
@@ -494,12 +495,12 @@ def get_method(
         new_size = Size.calculate_new(orig_size, scale, new_size,)
     new_size.width = orig_size.width if None else new_size.width
     new_size.height = orig_size.height if None else new_size.height
+    if new_size == orig_size:
+        raise ResizeNotNeededError
     LOG.debug(
         "Original size: %s; New size: %s; Resize method: %s",
         orig_size,
         new_size,
         resize_method,
     )
-    if new_size == orig_size:
-        raise ResizeNotNeededError
     return resize_method, new_size

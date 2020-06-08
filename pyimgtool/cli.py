@@ -81,7 +81,8 @@ def main():
             if arg.show_histogram:
                 print(generate_rgb_histogram(im))
         elif cmd == "mat":
-            im = mat.create_mat(im, mat_size="letter", portrait=arg.portrait)
+            im = np.asarray(im) if type(im) != np.ndarray else im
+            im = mat.create_mat(im, size_inches=arg.size)
             out_image_size = Size.from_np(im)
         elif cmd == "resize":
             orig_size = Size(*im.size)
@@ -95,11 +96,14 @@ def main():
                     longest=arg.longest,
                     shortest=arg.shortest,
                 )
-            except ResizeNotNeededError:
-                LOG.warning("Resize not needed")
+            except ResizeNotNeededError as e:
+                LOG.warning(e)
             else:
                 # Resize/resample
-                im = resize.resize(resize_method, im, new_size,)
+                try:
+                    im = resize.resize(resize_method, im, new_size,)
+                except ImageTooSmallError as e:
+                    LOG.warning(e)
                 out_image_size = Size(*im.size)
         elif cmd == "resize2":
             im = np.asarray(im)
@@ -116,14 +120,15 @@ def main():
                     longest=arg.longest,
                     shortest=arg.shortest,
                 )
-            except ImageTooSmallError as e:
-                LOG.warning("%s", e)
-            except ResizeNotNeededError:
-                LOG.warning("Resize not needed")
+            except ResizeNotNeededError as e:
+                LOG.warning(e)
             else:
-                im = resize.resize_opencv(
-                    resize_method, im, new_size, resample=cv2.INTER_LANCZOS4
-                )
+                try:
+                    im = resize.resize_opencv(
+                        resize_method, im, new_size, resample=cv2.INTER_LANCZOS4
+                    )
+                except ImageTooSmallError as e:
+                    LOG.warning(e)
                 out_image_size = Size.from_np(im)
         elif cmd == "text":
             im = watermark.with_text(

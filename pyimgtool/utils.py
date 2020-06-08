@@ -1,7 +1,38 @@
 """Helper functions."""
 import re
-import numpy as np
+from functools import wraps
 from pathlib import PurePath
+
+import numpy as np
+
+
+class Log:
+    def __init__(self, logger):
+        """Logging decorator.
+
+        Logs function and parameter info.
+
+        Parameters
+        ----------
+        logger
+            Logger to use for logging.
+        """
+        self.logger = logger
+
+    def __call__(self, fn):
+        @wraps(fn)
+        def decorated(*args, **kwargs):
+            try:
+                self.logger.debug("{0} - {1} - {2}".format(fn.__name__, args, kwargs))
+                result = fn(*args, **kwargs)
+                self.logger.debug(result)
+                return result
+            except Exception as ex:
+                self.logger.debug("Exception {0}".format(ex))
+                raise ex
+            return result
+
+        return decorated
 
 
 def get_pkg_root() -> PurePath:

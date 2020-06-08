@@ -2,29 +2,44 @@
 
 import logging
 import numpy as np
+from typing import Tuple
+
+from pyimgtool.data_structures import Size
 
 LOG = logging.getLogger(__name__)
 
 
-def create_mat(im: np.ndarray, mat_size: str = "letter", dpi=300, portrait=False) -> np.ndarray:
-    """Paste image onto mat of a specified size.
+def create_mat(
+    im: np.ndarray,
+    size_inches: Tuple[float, float] = (8.5, 11.0),
+    size_pixels: Size = None,
+    dpi=300,
+) -> np.ndarray:
+    """Paste image onto mat of specified size.
 
-    Args:
-        im: Numpy array of image data
-        mat_size: Preset sizes of mat
-        dpi: DPI of resulting image
+    Parameters
+    ----------
+    im
+        Numpy array of image data
+    size_inches
+        Width, height in inches (relative to `dpi`)
+    size_pixels
+        Size object of pixel dimensions
+    dpi
+        DPI of resulting image
 
-    Returns: matted image array
+    Returns
+    -------
+    np.ndarray:
+        Matted image array
     """
     h, w, c = im.shape
-    if mat_size == "letter":
-        mh = int(round(dpi * 8.5))
-        mw = int(round(dpi * 11.0))
+    if size_pixels is not None:
+        LOG.info("Creating mat with pixel dimensions: %s", size_pixels)
+        mw, mh = tuple(size_pixels)
     else:
-        mh = 5000
-        mw = 5000
-    if portrait:
-        mw, mh = mh, mw
+        LOG.info("Creating mat with print dimensions: %s", size_inches)
+        mw, mh = [int(i * dpi) for i in size_inches]
     mat = 255 * np.ones((mh, mw, c), dtype=np.uint8)
     xx = (mw - w) // 2
     yy = (mh - h) // 2

@@ -5,7 +5,7 @@ import logging
 import sys
 import textwrap
 from shutil import get_terminal_size
-from typing import List
+from typing import List, Tuple
 
 from pyimgtool.data_structures import Position
 from pyimgtool.version import __version__
@@ -50,6 +50,15 @@ class CustomFormatter(argparse.RawTextHelpFormatter):
                 parts[-1] += " <%s>" % args_string
             return ", ".join(parts)
 
+    def _get_help_string(self, action):
+        help = action.help
+        if "%(default)" not in action.help:
+            if action.default not in [argparse.SUPPRESS, None]:
+                defaulting_nargs = [argparse.OPTIONAL, argparse.ZERO_OR_MORE]
+                if action.option_strings or action.nargs in defaulting_nargs:
+                    help += " (default: %(default)s)"
+        return help
+
 
 class OrderedNamespace(argparse.Namespace):
     """Namespace that retains calling order of subparsers.
@@ -79,6 +88,21 @@ class OrderedNamespace(argparse.Namespace):
         """
         # TODO: find way to put top-level attrs in own namespace
         return ((attr, getattr(self, attr)) for attr in ["_top_level"] + self._order)
+
+
+def split_to_tuple(arg: str) -> Tuple[float, ...]:
+    """Split string `arg` into tuple using `delimiter`.
+
+    Parameters
+    ----------
+    arg
+        Command line argument.
+
+    Returns
+    -------
+    Tuple of split args
+    """
+    return tuple([float(i) for i in arg.split(",")])
 
 
 def parse_args(args: List[str]) -> OrderedNamespace:
@@ -146,14 +170,13 @@ def parse_args(args: List[str]) -> OrderedNamespace:
     )
     mat_cmd.add_argument(
         "size",
-        help="size of mat, in inches",
+        help="dimensions of mat, in inches",
         metavar="SIZE",
-        choices=["letter", "8x10", "5x7"],
+        type=split_to_tuple,
     )
     mat_cmd.add_argument(
-        "-p", "--portrait", help="use portrait orientation", action="store_true"
+        "-d", "--dpi", help="Dots per inch for mat", type=int, default=300
     )
-
     # Resize
     resize_cmd = commands.add_parser("resize", help="resize image dimensions",)
     resize_cmd.add_argument(

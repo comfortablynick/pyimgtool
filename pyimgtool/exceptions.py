@@ -15,10 +15,14 @@ class ImageTooSmallError(Exception):
 
     def __str__(self):
         """Return string representation."""
-        return repr(self.message)
+        return self.message
 
 
 class ResizeNotNeededError(Exception):
     """Raised when current image size matches new size."""
 
-    pass
+    def __init__(self):
+        self.message = "Resize not needed; image size matches new size."
+
+    def __str__(self):
+        return self.message
