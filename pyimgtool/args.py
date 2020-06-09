@@ -46,14 +46,14 @@ class CustomFormatter(argparse.RawTextHelpFormatter):
                 default = action.dest.upper()
                 args_string = self._format_args(action, default)
                 for option_string in action.option_strings:
-                    parts.append("%s" % option_string)
-                parts[-1] += " <%s>" % args_string
+                    parts.append(option_string)
+                parts[-1] += f" {args_string}"
             return ", ".join(parts)
 
     def _get_help_string(self, action):
         help = action.help
         if "%(default)" not in action.help:
-            if action.default not in [argparse.SUPPRESS, None]:
+            if action.default not in [argparse.SUPPRESS, None, False]:
                 defaulting_nargs = [argparse.OPTIONAL, argparse.ZERO_OR_MORE]
                 if action.option_strings or action.nargs in defaulting_nargs:
                     help += " (default: %(default)s)"
@@ -232,26 +232,18 @@ def parse_args(args: List[str]) -> OrderedNamespace:
         "-r",
         "--rotation",
         help="angle of watermark rotation",
-        dest="rotation",
         metavar="ANGLE",
         type=int,
         default=0,
     )
     watermark_cmd.add_argument(
-        "-o",
-        "--opacity",
-        help="watermark opacity",
-        dest="opacity",
-        type=float,
-        metavar="OPACITY",
-        default=0.3,
+        "-o", "--opacity", help="watermark opacity", type=float, default=0.3,
     )
     watermark_cmd.add_argument(
         "-p",
         "--position",
         help="watermark position",
-        dest="position",
-        metavar="POS",
+        metavar="POSITION",
         default=Position.BOTTOM_RIGHT,
         type=Position.argparse,
         choices=list(Position),
@@ -259,9 +251,7 @@ def parse_args(args: List[str]) -> OrderedNamespace:
     watermark_cmd.add_argument(
         "-s",
         "--scale",
-        help="watermark scale in percent of image size (default = 10)",
-        dest="scale",
-        metavar="SCALE",
+        help="watermark scale in percent of image size",
         default=0.2,
         type=float,
     )
@@ -280,26 +270,18 @@ def parse_args(args: List[str]) -> OrderedNamespace:
         "-r",
         "--rotation",
         help="angle of watermark rotation",
-        dest="rotation",
         metavar="ANGLE",
         type=int,
         default=0,
     )
     watermark2_cmd.add_argument(
-        "-o",
-        "--opacity",
-        help="watermark opacity",
-        dest="opacity",
-        type=float,
-        metavar="OPACITY",
-        default=0.3,
+        "-o", "--opacity", help="watermark opacity", type=float, default=0.3,
     )
     watermark2_cmd.add_argument(
         "-p",
         "--position",
         help="watermark position",
-        dest="position",
-        metavar="POS",
+        metavar="POSITION",
         default=Position.BOTTOM_RIGHT,
         type=Position.argparse,
         choices=list(Position),
@@ -307,7 +289,7 @@ def parse_args(args: List[str]) -> OrderedNamespace:
     watermark2_cmd.add_argument(
         "-s",
         "--scale",
-        help="watermark scale in percent of image size (default = 10)",
+        help="watermark scale in percent of image size",
         dest="scale",
         metavar="SCALE",
         default=0.2,
@@ -323,39 +305,37 @@ def parse_args(args: List[str]) -> OrderedNamespace:
         "-c",
         "--copyright",
         help="display TEXT as copyright message after © and date taken",
-        dest="copyright",
         action="store_true",
     )
     text_cmd.add_argument(
         "-r",
+        "--rotation",
         help="angle of text rotation",
-        dest="rotation",
         metavar="ANGLE",
         type=int,
         default=0,
     )
     text_cmd.add_argument(
         "-o",
-        help="opacity",
-        dest="opacity",
+        "--opacity",
+        help="opacity of text layer",
         type=float,
         metavar="OPACITY",
         default=0.3,
     )
     text_cmd.add_argument(
         "-p",
-        help="position",
-        dest="position",
-        metavar="POS",
+        "--position",
+        help="position of text",
+        metavar="POSITION",
         default=Position.BOTTOM_RIGHT,
         type=Position.argparse,
         choices=list(Position),
     )
     text_cmd.add_argument(
         "-s",
+        "--scale",
         help="scale of text relative to image width",
-        dest="scale",
-        metavar="SCALE",
         default=0.20,
         type=float,
     )
@@ -374,34 +354,28 @@ def parse_args(args: List[str]) -> OrderedNamespace:
     )
     text2_cmd.add_argument(
         "-r",
+        "--rotation",
         help="angle of text rotation",
-        dest="rotation",
         metavar="ANGLE",
         type=int,
         default=0,
     )
     text2_cmd.add_argument(
-        "-o",
-        help="opacity",
-        dest="opacity",
-        type=float,
-        metavar="OPACITY",
-        default=0.3,
+        "-o", "--opacity", help="opacity of text layer", type=float, default=0.3,
     )
     text2_cmd.add_argument(
         "-p",
-        help="position",
-        dest="position",
-        metavar="POS",
+        "--position",
+        help="position of text",
+        metavar="POSITION",
         default=Position.BOTTOM_RIGHT,
         type=Position.argparse,
         choices=list(Position),
     )
     text2_cmd.add_argument(
         "-s",
+        "--scale",
         help="scale of text relative to image width",
-        dest="scale",
-        metavar="SCALE",
         default=0.20,
         type=float,
     )
