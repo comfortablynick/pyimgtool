@@ -51,10 +51,8 @@ class Size:
         width: Width of image (None -> 0)
         height: Height of image (None -> 0)
     """
-
-    def __init__(self, width: int = None, height: int = None):
-        self.width = width if width is not None else 0
-        self.height = height if height is not None else 0
+    width: int = 0
+    height: int = 0
 
     def __iter__(self):
         """Allow iteration of object."""

@@ -86,7 +86,6 @@ class OrderedNamespace(argparse.Namespace):
 
         Yield: Command namespace in the order called
         """
-        # TODO: find way to put top-level attrs in own namespace
         return ((attr, getattr(self, attr)) for attr in ["_top_level"] + self._order)
 
 
@@ -218,6 +217,12 @@ def parse_args(args: List[str]) -> OrderedNamespace:
     )
     resize2_cmd.add_argument(
         "-S", "--shortest", help="shortest dimension of output", metavar="PX", type=int,
+    )
+    resize2_cmd.add_argument(
+        "-f",
+        "--force",
+        help="force exact dimensions, cropping or adding whitespace if needed",
+        action="store_true",
     )
 
     # Watermark
@@ -441,7 +446,7 @@ def parse_args(args: List[str]) -> OrderedNamespace:
         sys.exit(1)
 
     # user-defined opts on the main parser that we will remove from
-    # the namespaces of the lower-level parsers (not sure why they appear)
+    # the namespaces of the lower-level parsers
     top_level_opts = [
         action.dest
         for action in parser._actions
@@ -460,21 +465,24 @@ def parse_args(args: List[str]) -> OrderedNamespace:
                 split_argv.append([c])
         else:
             split_argv[-1].append(c)
+
     # Initialize namespace
     ns = OrderedNamespace(commands)
     for c in commands.choices:
         setattr(ns, c, None)
-    # Parse each command
+
+    # Parse top level, displaying help if no args given
     if len(split_argv) == 0:
-        split_argv.append(["-h"])  # if no command was given
-    parser.parse_args(split_argv[0], namespace=ns)  # Without command
-    for argv in split_argv[1:]:  # Commands
+        split_argv.append(["-h"])
+    parser.parse_args(split_argv[0], namespace=ns)
+
+    for argv in split_argv[1:]:
         n = argparse.Namespace()
         setattr(ns, argv[0], n)
         parser.parse_args(argv, namespace=n)
         for opt in top_level_opts:
             delattr(n, opt)
-    # setattr(ns, '_top', )
+
     # basic validation
     if ns.quiet > 0:
         ns.verbosity = 0
@@ -484,10 +492,11 @@ def parse_args(args: List[str]) -> OrderedNamespace:
     for k, v in ns.__dict__.items():
         if k in top_level_opts:
             setattr(top, k, v)
-            # delattr(ns, k)
     setattr(ns, "_top_level", top)
     for a in top_level_opts:
         delattr(ns, a)
+
+    # print([n for n in ns.ordered()])
     return ns
 
 

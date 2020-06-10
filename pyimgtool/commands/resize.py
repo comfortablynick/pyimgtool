@@ -16,7 +16,7 @@ from PIL.Image import Image as PILImage
 
 from pyimgtool.data_structures import Size
 from pyimgtool.commands.mat import create_mat
-from pyimgtool.exceptions import ImageTooSmallError, ResizeNotNeededError
+from pyimgtool.exceptions import ImageTooSmallError, ResizeNotNeededError, ResizeAttributeError
 
 LOG = logging.getLogger(__name__)
 
@@ -248,14 +248,22 @@ def resize_contain_opencv(
     Image is not cropped and aspect ratio is kept intact.
     Same behavior as `background-size: contain`.
 
-    Args:
-        image: Numpy array
-        size: Size object
-        resample: Resample method
-        bg_color: RGBA Tuple for background (if image smaller than `size`)
-        bg_size: Background size (if different from `size`)
+    Parameters
+    ----------
+    image
+        Numpy array
+    size
+        Size object
+    resample
+        Resample method
+    bg_color
+        RGBA Tuple for background (if image smaller than `size`)
+    bg_size
+        Background size (if different from `size`)
 
-    Returns: Numpy array
+    Returns
+    -------
+    Numpy array
     """
     im = resize_thumbnail_opencv(im, size, resample=resample, validate=False)
     if bg_size is None:
@@ -274,12 +282,18 @@ def resize_width(image: PILImage, size: Size, resample=Image.LANCZOS) -> PILImag
 
     Aspect ratio is kept intact.
 
-    Args:
-        image: Pillow image instance
-        size: Size object of desired size
-        resample: Resample method
+    Parameters
+    ----------
+    image
+        Pillow image instance
+    size
+        Size object of desired size
+    resample
+        Resample method
 
-    Returns: PIL Image
+    Returns
+    -------
+    Resized image
     """
     img_format = image.format
     img = image.copy()
@@ -298,12 +312,18 @@ def resize_width_opencv(
 
     Aspect ratio is kept intact.
 
-    Args:
-        im: Numpy array
-        size: Size object of desired size
-        resample: Resample method
+    Parameters
+    ----------
+    im
+        Numpy array
+    size
+        Size object of desired size
+    resample
+        Resample method
 
-    Returns: Numpy array
+    Returns
+    -------
+    Resized image
     """
     orig_h, orig_w = im.shape[:2]
     r = size.width / float(orig_w)
@@ -317,12 +337,18 @@ def resize_height(image: PILImage, size: Size, resample=Image.LANCZOS) -> PILIma
 
     Aspect ratio is kept intact.
 
-    Args:
-        image: Pillow image instance
-        size: Size object of desired size
-        resample: Resample method
+    Parameters
+    ----------
+    image
+        Pillow image instance
+    size
+        Size object of desired size
+    resample
+        Resample method
 
-    Returns: PIL Image
+    Returns
+    -------
+    Resized image
     """
     img_format = image.format
     img = image.copy()
@@ -341,12 +367,18 @@ def resize_height_opencv(
 
     Aspect ratio is kept intact.
 
-    Args:
-        im: Numpy array
-        size: Size object of desired size
-        resample: Resample method
+    Parameters
+    ----------
+    im
+        Numpy array
+    size
+        Size object of desired size
+    resample
+        Resample method
 
-    Returns: Numpy array
+    Returns
+    -------
+    Resized image
     """
     orig_h, orig_w = im.shape[:2]
     r = size.height / float(orig_h)
@@ -360,39 +392,90 @@ def resize_thumbnail(image: PILImage, size: Size, resample=Image.LANCZOS) -> PIL
 
     Aspect ratio is kept intact while trying best to match `size`.
 
-    Args:
-        image: Pillow image instance
-        size: Size object of desired size
-        resample: Resample method
+    Parameters
+    ----------
+    image
+        Pillow image instance
+    size
+        Size object of desired size
+    resample
+        Resample method
 
-    Returns: PIL Image
+    Returns
+    -------
+    Resized image
     """
     image.thumbnail(size, resample)
     return image
 
 
+# @validate(is_big_enough)
+# def resize_thumbnail_opencv(
+#     im: np.ndarray, size: Size, resample=cv2.INTER_AREA
+# ) -> np.ndarray:
+#     """Resize image to according to specified size.
+#
+#     Aspect ratio is kept intact while trying best to match `size`.
+#
+#     Parameters
+#     ----------
+#     image
+#         Numpy array
+#     size
+#         Size object of desired size
+#     resample
+#         Resample method
+#
+#     Returns
+#     -------
+#     Resized image array
+#     """
+#     y, x = im.shape[:2]
+#     if x > size.w:
+#         y = int(max(y * size.w / x, 1))
+#         x = int(size.w)
+#     if y > size.h:
+#         x = int(max(x * size.h / y, 1))
+#         y = int(size.h)
+#     new_size = Size(x, y)
+#     LOG.debug("Thumbnail calculated size: %s", new_size)
+#     if new_size == Size.from_np(im):
+#         LOG.debug("Thumbnail size matches existing image size")
+#         return im
+#     return cv2.resize(im, tuple(new_size), interpolation=resample)
+
+
 @validate(is_big_enough)
 def resize_thumbnail_opencv(
     im: np.ndarray, size: Size, resample=cv2.INTER_AREA
-) -> PILImage:
-    """Resize image to according to specified size.
+) -> np.ndarray:
+    """Resize image while maintaining aspect ratio.
 
-    Aspect ratio is kept intact while trying best to match `size`.
+    Parameters
+    ----------
+    im
+        Numpy array
+    size
+        Size object of desired size
+    resample
+        Interpolation method
 
-    Args:
-        image: Numpy array
-        size: Size object of desired size
-        resample: Resample method
-
-    Returns: Array of resized image
+    Returns
+    -------
+    Resized image array
     """
-    y, x = im.shape[:2]
-    if x > size.w:
-        y = int(max(y * size.w / x, 1))
-        x = int(size.w)
-    if y > size.h:
-        x = int(max(x * size.h / y, 1))
-        y = int(size.h)
+    x, y = map(math.floor, size)
+    h, w = im.shape[:2]
+
+    def round_aspect(number, key):
+        return max(min(math.floor(number), math.ceil(number), key=key), 1)
+
+    # preserve aspect ratio
+    aspect = w / h
+    if x / y >= aspect:
+        x = round_aspect(y * aspect, key=lambda n: abs(aspect - n / y))
+    else:
+        y = round_aspect(x / aspect, key=lambda n: 0 if n == 0 else abs(aspect - x / n))
     new_size = Size(x, y)
     LOG.debug("Thumbnail calculated size: %s", new_size)
     if new_size == Size.from_np(im):
@@ -404,10 +487,14 @@ def resize_thumbnail_opencv(
 def resize(method, *args, **kwargs):
     """Direct arguments to one of the resize functions.
 
-    Args:
-        method: One among 'crop', 'cover', 'contain', 'width', 'height' or 'thumbnail'
-        image: Pillow image instance
-        size: Size object
+    Parameters
+    ----------
+    method
+        One among 'crop', 'cover', 'contain', 'width', 'height' or 'thumbnail'
+    image
+        Pillow image instance
+    size
+        Size object
     """
     valid_methods = ["crop", "cover", "contain", "width", "height", "thumbnail"]
     if method not in valid_methods:
@@ -422,10 +509,14 @@ def resize(method, *args, **kwargs):
 def resize_opencv(method, *args, **kwargs):
     """Direct arguments to one of the resize functions.
 
-    Args:
-        method: One among 'crop', 'cover', 'contain', 'width', 'height' or 'thumbnail'
-        image: Numpy array
-        size: Size object
+    Parameters
+    ----------
+    method
+        One among 'crop', 'cover', 'contain', 'width', 'height' or 'thumbnail'
+    image
+        Numpy array
+    size
+        Size object with desired size
     """
     method = f"resize_{method}_opencv"
     valid_methods = [
@@ -441,7 +532,7 @@ def resize_opencv(method, *args, **kwargs):
 
 
 def get_method(
-    orig_size: Size, width=None, height=None, scale=None, longest=None, shortest=None
+    orig_size: Size, width=None, height=None, scale=None, longest=None, shortest=None, force=False,
 ) -> Tuple[str, Size]:
     """Determine which resize method to use based on calculated size.
 
@@ -459,42 +550,38 @@ def get_method(
         Longest size parameter
     shortest
         Shortest size parameter
+    force
+        Use exact dimensions provided; either crop or contain image
 
     Returns
     -------
-    Tuple[str, Size]:
-        Resize method, calculated size
+    Resize method, calculated size
     """
     resize_method = "thumbnail"
-    new_size = Size(width, height)
-    # if new_size == orig_size:
-    #     raise ResizeNotNeededError
+    if force:
+        if not width or not height:
+            raise ResizeAttributeError("Both width and height are required for crop")
+        resize_method = "crop"
+    new_size = Size(width or orig_size.width, height or orig_size.width)
     if longest is not None:
         if orig_size.width >= orig_size.height:
-            resize_method = "width"
             new_size.width = longest
         else:
-            resize_method = "height"
             new_size.height = longest
     elif shortest is not None:
         if orig_size.width <= orig_size.height:
-            resize_method = "width"
             new_size.width = shortest
         else:
-            resize_method = "height"
             new_size.height = shortest
-    elif width is not None and height is not None:
-        resize_method = "crop"
-        if new_size > orig_size:
-            resize_method = "contain"
-    elif width is not None and height is None:
-        resize_method = "width"
-    elif width is None and height is not None:
-        resize_method = "height"
-    else:
+    # elif width is not None and height is not None:
+    #     resize_method = "crop"
+    #     if new_size > orig_size:
+    #         resize_method = "contain"
+    # elif width is not None and height is None:
+    #     resize_method = "width"
+    #     # new_size.height = orig_size.height
+    if scale is not None:
         new_size = Size.calculate_new(orig_size, scale, new_size,)
-    new_size.width = orig_size.width if None else new_size.width
-    new_size.height = orig_size.height if None else new_size.height
     if new_size == orig_size:
         raise ResizeNotNeededError
     LOG.debug(

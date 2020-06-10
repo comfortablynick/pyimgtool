@@ -1,25 +1,29 @@
 """Resize and watermark images."""
 
 import logging
-import sys
 import os
+import sys
 from io import BytesIO
 from pathlib import Path
 from pprint import pformat
 from time import perf_counter
 from typing import Dict, Optional
 
-import numpy as np
 import cv2
+import numpy as np
 import piexif
 import plotille
 from PIL import Image
 from sty import ef, fg, rs
 
 from pyimgtool.args import parse_args
-from pyimgtool.commands import resize, watermark, mat
+from pyimgtool.commands import mat, resize, watermark
 from pyimgtool.data_structures import Size
-from pyimgtool.exceptions import ResizeNotNeededError, ImageTooSmallError
+from pyimgtool.exceptions import (
+    ImageTooSmallError,
+    ResizeAttributeError,
+    ResizeNotNeededError,
+)
 from pyimgtool.utils import humanize_bytes
 
 logging.basicConfig(level=logging.WARNING)
@@ -65,8 +69,6 @@ def main():
             in_file_path = arg.input.name
             in_file_size = os.path.getsize(in_file_path)
             im = Image.open(arg.input)
-            assert im is not None
-
             in_image_size = Size(*im.size)
             LOG.info("Input dims: %s", in_image_size)
             try:
@@ -119,9 +121,13 @@ def main():
                     scale=arg.scale,
                     longest=arg.longest,
                     shortest=arg.shortest,
+                    force=arg.force,
                 )
             except ResizeNotNeededError as e:
                 LOG.warning(e)
+            except ResizeAttributeError as e:
+                print(f"{fg.li_red}error: {e}{rs.fg}", file=sys.stderr)
+                sys.exit(1)
             else:
                 try:
                     im = resize.resize_opencv(
