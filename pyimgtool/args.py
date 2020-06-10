@@ -4,7 +4,6 @@ import argparse
 import logging
 import sys
 import textwrap
-from shutil import get_terminal_size
 from typing import List, Tuple
 
 from pyimgtool.data_structures import Position
@@ -15,17 +14,6 @@ LOG = logging.getLogger(__name__)
 
 class CustomFormatter(argparse.RawTextHelpFormatter):
     """Format help messages to custom spec."""
-
-    def __init__(self, prog):
-        """Override formatter defaults."""
-        max_width = min(100, get_terminal_size()[0])
-        # TODO: get all help items and set max_width based on longest (or term width)
-        # max_help_position >= max(len(param.name)+len(param.metavar) for param in params)
-        super(CustomFormatter, self).__init__(
-            prog, max_help_position=max_width, width=max_width
-        )
-        self._max_help_position = max_width
-        self._action_max_length += 4
 
     def _format_action_invocation(self, action):
         if not action.option_strings:
@@ -47,6 +35,7 @@ class CustomFormatter(argparse.RawTextHelpFormatter):
                 args_string = self._format_args(action, default)
                 for option_string in action.option_strings:
                     parts.append(option_string)
+                # print(len(s) for s in action.option_strings)
                 parts[-1] += f" {args_string}"
             return ", ".join(parts)
 
@@ -58,6 +47,31 @@ class CustomFormatter(argparse.RawTextHelpFormatter):
                 if action.option_strings or action.nargs in defaulting_nargs:
                     help += " (default: %(default)s)"
         return help
+
+    def _format_action(self, action):
+        if type(action) == argparse._SubParsersAction:
+            # inject new class variable for subcommand formatting
+            subactions = action._get_subactions()
+            invocations = [self._format_action_invocation(a) for a in subactions]
+            self._subcommand_max_length = max(len(i) for i in invocations)
+
+        if type(action) == argparse._SubParsersAction._ChoicesPseudoAction:
+            # format subcommand help line
+            subcommand = self._format_action_invocation(action)  # type: str
+            width = self._subcommand_max_length
+            help_text = ""
+            if action.help:
+                help_text = self._expand_help(action)
+            return f"  {subcommand:{width}}    {help_text}\n"
+
+        elif type(action) == argparse._SubParsersAction:
+            # process subcommand help section
+            msg = "\n"
+            for subaction in action._get_subactions():
+                msg += self._format_action(subaction)
+            return msg
+        else:
+            return super(CustomFormatter, self)._format_action(action)
 
 
 class OrderedNamespace(argparse.Namespace):
@@ -122,9 +136,7 @@ def parse_args(args: List[str]) -> OrderedNamespace:
         quality levels. Watermarking can also be added.
         """
     )
-    parser = argparse.ArgumentParser(
-        description=desc, formatter_class=argparse.RawTextHelpFormatter
-    )
+    parser = argparse.ArgumentParser(description=desc, formatter_class=CustomFormatter)
     parser.add_argument(
         "-v",
         help="increase logging output to console",
@@ -143,7 +155,7 @@ def parse_args(args: List[str]) -> OrderedNamespace:
         "-V", "--version", action="version", version=f"%(prog)s {__version__}"
     )
     commands = parser.add_subparsers(
-        title="Commands", description="image operations", help="valid commands",
+        title="commands", description="image operations", help="valid commands",
     )
 
     # Commands
@@ -435,11 +447,6 @@ def parse_args(args: List[str]) -> OrderedNamespace:
     for _, subp in commands.choices.items():
         subp.formatter_class = CustomFormatter
 
-    if parser._positionals.title is not None:
-        parser._positionals.title = "Arguments"
-    if parser._optionals.title is not None:
-        parser._optionals.title = "Options"
-
     if not args:
         print("error: arguments required", file=sys.stderr)
         parser.print_usage(file=sys.stderr)
@@ -495,8 +502,6 @@ def parse_args(args: List[str]) -> OrderedNamespace:
     setattr(ns, "_top_level", top)
     for a in top_level_opts:
         delattr(ns, a)
-
-    # print([n for n in ns.ordered()])
     return ns
 
 

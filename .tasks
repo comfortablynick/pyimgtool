@@ -1,7 +1,62 @@
-; vim: set fenc=utf-8 ft=dosini:
+; vim:set fenc=utf-8 ft=dosini:
+; written with just2tasks: Wed Jun 10 17:19:08 2020
+
+[generate_tasks]
+command=just generate_tasks
+cwd=<root>
+output=terminal
+save=1
 
 [help]
-command=pyimgtool -h
+command=just help
+cwd=<root>
+output=terminal
+save=1
+
+[pack]
+command=just pack
+cwd=<root>
+output=terminal
+save=1
+
+[runargs]
+command=just runargs
+cwd=<root>
+output=terminal
+save=1
+
+[runcv]
+command=just runcv
+cwd=<root>
+output=terminal
+save=1
+
+[runpil]
+command=just runpil
+cwd=<root>
+output=terminal
+save=1
+
+[runw]
+command=just runw
+cwd=<root>
+output=terminal
+save=1
+
+[runwi]
+command=just runwi
+cwd=<root>
+output=terminal
+save=1
+
+[runwif]
+command=just runwif
+cwd=<root>
+output=terminal
+save=1
+
+[update_tasks]
+command=just update_tasks
 cwd=<root>
 output=terminal
 save=1

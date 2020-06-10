@@ -23,16 +23,16 @@ runcv:
     {{bin_name}} -vv open {{test_file_in}} resize2 -s 0.4 save {{test_file_out2}} -fk
 
 # test text watermark
-runw +args='':
-    {{bin_name}} {{test_file_in}} {{test_file_out}} -vf -mw 2000 -mh 2000 -tc "Nick Murphy | murphpix.com" {{args}}
+runw:
+    {{bin_name}} -vv open {{test_file_in}} resize2 -W 2000 -H 2000 text2 "Nick Murphy | murphpix.com" -c save {{test_file_out2}} -fk
 
 # test logo watermark image
-runwi +args='':
-    {{bin_name}} {{test_file_in}} {{test_file_out}} -vf -mw 2000 -mh 2000 -wi {{test_watermark_file}} {{args}}
+runwi:
+    {{bin_name}} -vv open {{test_file_in}} resize2 -W 2000 -H 2000 watermark2 {{test_watermark_file}} -s 0.5 -o 0.1 save {{test_file_out2}} -fk
 
 # test full logo watermark
-runwif +args='':
-    {{bin_name}} {{test_file_in}} {{test_file_out}} -vf -mw 2000 -mh 2000 -wi {{test_full_watermark_file}} {{args}}
+runwif:
+    {{bin_name}} -vv open {{test_file_in}} resize2 -W 2000 -H 2000 watermark2 {{test_full_watermark_file}} -s 0.2 -o 0.2 save {{test_file_out2}} -fk
 
 # show prog help
 help:
@@ -42,11 +42,6 @@ help:
 pack:
     rm -rf dist && python setup.py sdist bdist_wheel && twine upload dist/*
 
-generate_tasks:
-    #!/usr/bin/env python3
-    from subprocess import run
-    import re
-    tasks = run(["just", "-l"], capture_output=True)
-    tasks = [t.lstrip() for t in tasks.stdout.decode().split("\n")]
-    splits = [re.split(r"\s+", t) for t in tasks if t != ""]
-    print(splits)
+# update .tasks file in project root with justfile content
+update_tasks:
+    just2tasks ./.tasks
