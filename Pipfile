@@ -21,6 +21,7 @@ sty = "*"
 plotille = "*"
 opencv-python = "*"
 better-exceptions = "*"
+matplotlib = "*"
 
 [requires]
 python_version = "3.8"

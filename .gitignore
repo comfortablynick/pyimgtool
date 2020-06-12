@@ -5,6 +5,7 @@ conf.ini
 *.tif
 .vscode/
 __pycache__/
+.mypy_cache/
 .venv/
 build/
 dist/

@@ -1,9 +1,12 @@
 """Sharpen edges of image."""
 import logging
+import platform
 from typing import Tuple
 
 import cv2
 import numpy as np
+
+from pyimgtool.utils import show_image_cv2, show_image_plt
 
 LOG = logging.getLogger(__name__)
 
@@ -40,11 +43,11 @@ def unsharp_mask(
     sharpened = np.maximum(sharpened, np.zeros(sharpened.shape))
     sharpened = np.minimum(sharpened, 255 * np.ones(sharpened.shape))
     sharpened = sharpened.round().astype(np.uint8)
+    show_image_plt(cv2.cvtColor(sharpened, cv2.COLOR_BGR2RGB))
     if threshold > 0:
         low_contrast_mask = np.absolute(im - blurred)
         blank = 255 * np.ones(im.shape, dtype=im.dtype)
         mask = np.copyto(blank, low_contrast_mask)
-        print(mask)
         # cv2.imwrite(
         #     "../test/sharpen_mask.jpg",
         #     # np.where(low_contrast_mask < threshold)

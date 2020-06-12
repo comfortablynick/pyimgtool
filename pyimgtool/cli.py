@@ -17,7 +17,7 @@ from PIL import Image
 from sty import ef, fg, rs
 
 from pyimgtool.args import parse_args
-from pyimgtool.commands import mat, resize, watermark, sharpen
+from pyimgtool.commands import mat, resize, sharpen, watermark
 from pyimgtool.data_structures import Size
 from pyimgtool.exceptions import (
     ImageTooSmallError,
@@ -39,12 +39,18 @@ def main():
     log_level = 0
     try:
         log_level = (0, 20, 10)[opts.verbosity]
+        mpl_log_level = log_level + 10
     except IndexError:
         log_level = 10
+        mpl_log_level = log_level
     loggers = [logging.getLogger(name) for name in logging.root.manager.loggerDict]
     # set level for all loggers
+    # separate log level for matplotlib because it's so verbose
     for logger in loggers:
-        logger.setLevel(log_level)
+        if logger.name.startswith("matplotlib"):
+            logger.setLevel(mpl_log_level)
+        else:
+            logger.setLevel(log_level)
 
     LOG.debug("Program opts:\n%s", pformat(vars(opts)))
 

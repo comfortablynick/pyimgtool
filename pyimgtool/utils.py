@@ -1,9 +1,15 @@
 """Helper functions."""
+import logging
+import platform
 import re
 from functools import wraps
 from pathlib import PurePath
 
+import cv2
+import matplotlib.pyplot as plt
 import numpy as np
+
+LOG = logging.getLogger(__name__)
 
 
 class Log:
@@ -104,3 +110,28 @@ def rgba2rgb(rgba: np.ndarray, background=(255, 255, 255)) -> np.ndarray:
     rgb[:, :, 2] = b * a + (1.0 - a) * B
 
     return np.asarray(rgb, dtype="uint8")
+
+
+def show_image_plt(im: np.ndarray):
+    """Show image in matplotlib window."""
+    if platform.system() != "Windows":
+        LOG.info("Cannot show plot on this OS")
+        return
+    plt.set_loglevel("info")
+    plt.figure()
+    plt.imshow(im)
+    plt.show()
+
+
+def show_image_cv2(im: np.ndarray):
+    """Show image in window."""
+    if platform.system() != "Windows":
+        LOG.info("Cannot show plot on this OS")
+        return
+    cv2.namedWindow(
+        "image",
+        flags=cv2.WINDOW_NORMAL | cv2.WINDOW_KEEPRATIO | cv2.WINDOW_GUI_EXPANDED,
+    )
+    cv2.imshow("image", im)
+    cv2.waitKey(0)
+    cv2.destroyAllWindows()
