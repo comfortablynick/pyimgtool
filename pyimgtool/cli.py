@@ -17,7 +17,7 @@ from PIL import Image
 from sty import ef, fg, rs
 
 from pyimgtool.args import parse_args
-from pyimgtool.commands import mat, resize, watermark
+from pyimgtool.commands import mat, resize, watermark, sharpen
 from pyimgtool.data_structures import Size
 from pyimgtool.exceptions import (
     ImageTooSmallError,
@@ -174,6 +174,8 @@ def main():
                 position=arg.position,
                 opacity=arg.opacity,
             )
+        elif cmd == "sharpen":
+            im = sharpen.unsharp_mask(im, amount=arg.amount, threshold=arg.threshold)
         elif cmd == "save":
             use_progressive_jpg = in_file_size > 10000
             if use_progressive_jpg:

@@ -155,7 +155,7 @@ def parse_args(args: List[str]) -> OrderedNamespace:
         "-V", "--version", action="version", version=f"%(prog)s {__version__}"
     )
     commands = parser.add_subparsers(
-        title="commands", description="image operations", help="valid commands",
+        title="commands", description="image operations (may be chained)", metavar="COMMAND"
     )
 
     # Commands
@@ -397,6 +397,25 @@ def parse_args(args: List[str]) -> OrderedNamespace:
         type=float,
     )
 
+    # Sharpen
+    sharpen_cmd = commands.add_parser("sharpen", help="sharpen edges of image")
+    sharpen_cmd.add_argument(
+        "amount",
+        help="amount of sharpening to add",
+        type=float,
+        nargs="?",
+        default=1.0,
+        metavar="AMOUNT",
+    )
+    sharpen_cmd.add_argument(
+        "-t",
+        "--threshold",
+        help="low-contrast mask threshold",
+        type=float,
+        default=0.0,
+        metavar="N",
+    )
+
     # Save
     save_cmd = commands.add_parser("save", help="save edited file to disk")
     save_cmd.add_argument(
@@ -406,18 +425,10 @@ def parse_args(args: List[str]) -> OrderedNamespace:
         metavar="OUTPUT_FILE",
     )
     save_cmd.add_argument(
-        "-f",
-        "--force",
-        help="force overwrite of existing file",
-        dest="force",
-        action="store_true",
+        "-f", "--force", help="force overwrite of existing file", action="store_true",
     )
     save_cmd.add_argument(
-        "-k",
-        "--keep-exif",
-        help="keep exif data if possible",
-        dest="keep_exif",
-        action="store_true",
+        "-k", "--keep-exif", help="keep exif data if possible", action="store_true",
     )
     save_cmd.add_argument(
         "-n",
@@ -437,10 +448,10 @@ def parse_args(args: List[str]) -> OrderedNamespace:
     )
     save_cmd.add_argument(
         "-s",
+        "--suffix",
         nargs=1,
         help="text suffix appended to INPUT path if no OUTPUT file given",
         metavar="TEXT",
-        dest="suffix",
         default="_edited",
     )
 
@@ -497,6 +508,7 @@ def parse_args(args: List[str]) -> OrderedNamespace:
     # give top-level args their own namespace
     top = argparse.Namespace()
     for k, v in ns.__dict__.items():
+
         if k in top_level_opts:
             setattr(top, k, v)
     setattr(ns, "_top_level", top)

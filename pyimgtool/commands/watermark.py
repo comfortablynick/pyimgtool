@@ -194,12 +194,12 @@ def with_image_opencv(
     )
     wH, wW = watermark_image.shape[:2]
     h, w = im.shape[:2]
-    im = np.dstack([im, np.ones((h, w), dtype="uint8") * 255])
+    im = np.dstack([im, np.ones((h, w), dtype=np.uint8) * 255])
     # construct an overlay that is the same size as the input
     # image, (using an extra dimension for the alpha transparency),
     # then add the watermark to the overlay in the bottom-right
     # corner
-    overlay = np.zeros((h, w, 4), dtype="uint8")
+    overlay = np.zeros((h, w, 4), dtype=np.uint8)
     overlay[h - wH - 10 : h - 10, w - wW - 10 : w - 10] = watermark_image
     # blend the two images together using transparent overlays
     output = im.copy()
