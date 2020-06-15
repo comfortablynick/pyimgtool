@@ -11,7 +11,7 @@ from PIL import Image, ImageDraw, ImageFont, ImageStat
 
 from pyimgtool.commands.resize import resize_height
 from pyimgtool.data_structures import Size, Position
-from pyimgtool.utils import get_pkg_root
+from pyimgtool.utils import get_pkg_root, Log
 
 LOG = logging.getLogger(__name__)
 
@@ -167,11 +167,12 @@ def with_image(
     return im
 
 
+@Log(LOG)
 def with_image_opencv(
     im: np.ndarray,
     watermark_image: np.ndarray,
     scale: float = 0.2,
-    position: Position = None,
+    position: Position = Position.BOTTOM_RIGHT,
     opacity: float = 0.3,
     padding: int = 10,
 ) -> Image:
@@ -187,6 +188,7 @@ def with_image_opencv(
 
     Returns: Watermarked image array
     """
+    LOG.info("Inserting watermark at position: %s", position)
     wH, wW = watermark_image.shape[:2]
     new_size = Size.calculate_new(Size(wW, wH), scale)
     watermark_image = cv2.resize(
@@ -200,7 +202,18 @@ def with_image_opencv(
     # then add the watermark to the overlay in the bottom-right
     # corner
     overlay = np.zeros((h, w, 4), dtype=np.uint8)
-    overlay[h - wH - 10 : h - 10, w - wW - 10 : w - 10] = watermark_image
+    hh, ww = 0, 0
+    if position == Position.TOP_LEFT:
+        hh = 0
+        ww = 0
+    if position == Position.CENTER:
+        hh = (h - wH) // 2
+        ww = (w - wW) // 2
+    elif position == Position.BOTTOM_RIGHT:
+        hh = h - wH
+        ww = w - wW
+    LOG.debug("hh: %d, ww: %d", hh, ww)
+    overlay[hh + padding : hh + wH + padding, ww + padding : ww + wH + padding] = watermark_image
     # blend the two images together using transparent overlays
     output = im.copy()
     cv2.addWeighted(overlay, opacity, output, 1.0, 0, output)

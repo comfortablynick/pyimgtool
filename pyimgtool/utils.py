@@ -2,6 +2,7 @@
 import logging
 import platform
 import re
+import time
 from functools import wraps
 from pathlib import PurePath
 
@@ -13,32 +14,37 @@ LOG = logging.getLogger(__name__)
 
 
 class Log:
-    def __init__(self, logger):
-        """Logging decorator.
+    """Decorator class to log fn execution time and parameters."""
 
-        Logs function and parameter info.
-
-        Parameters
-        ----------
-        logger
-            Logger to use for logging.
-        """
+    def __init__(self, logger=None, fmt="[{elapsed:0.8f}s] {name}({args}) -> {result}"):
+        self.fmt = fmt
         self.logger = logger
+        np.set_string_function(np_repr)
 
-    def __call__(self, fn):
-        @wraps(fn)
-        def decorated(*args, **kwargs):
-            try:
-                self.logger.debug("{0} - {1} - {2}".format(fn.__name__, args, kwargs))
-                result = fn(*args, **kwargs)
-                self.logger.debug(result)
-                return result
-            except Exception as ex:
-                self.logger.debug("Exception {0}".format(ex))
-                raise ex
-            return result
+    def __call__(self, func):
+        if self.logger is None:
+            logging.basicConfig(level=10)
+            self.logger = logging.getLogger(__name__)
 
-        return decorated
+        @wraps(func)
+        def wrapper(*_args, **_kwargs):
+            t0 = time.time()
+            _result = func(*_args, **_kwargs)
+            elapsed = time.time() - t0
+            name = func.__name__
+            arg_lst = []
+            if _args is not None:
+                arg_lst.append(", ".join(repr(a) for a in _args))
+            if _kwargs is not None:
+                arg_lst.append(
+                    ", ".join(f"{k}={repr(w)}" for k, w in sorted(_kwargs.items()))
+                )
+            args = ", ".join(arg_lst)
+            result = repr(_result)
+            self.logger.debug(self.fmt.format(**locals()))
+            return _result
+
+        return wrapper
 
 
 def get_pkg_root() -> PurePath:
@@ -133,5 +139,22 @@ def show_image_cv2(im: np.ndarray):
         flags=cv2.WINDOW_NORMAL | cv2.WINDOW_KEEPRATIO | cv2.WINDOW_GUI_EXPANDED,
     )
     cv2.imshow("image", im)
+
     cv2.waitKey(0)
-    cv2.destroyAllWindows()
+
+
+def np_repr(array: np.ndarray) -> str:
+    """Custom repr for numpy.ndarray.
+
+    The string is formatted to show "ndarray(h, w, c, dtype=dtype)"
+
+    Parameters
+    ----------
+    array
+        Numpy ndarray
+
+    Returns
+    -------
+    Formatted string
+    """
+    return "ndarray({}, {}, {}, dtype={})".format(*array.shape, array.dtype)

@@ -20,6 +20,7 @@ class Position(Enum):
     BOTTOM_RIGHT = "bottom-right"
     BOTTOM_LEFT = "bottom-left"
     BOTTOM_CENTER = "bottom-center"
+    CENTER = "center"
 
     def __str__(self):
         """Return enum value in lowercase."""
