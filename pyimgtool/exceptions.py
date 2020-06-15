@@ -33,3 +33,10 @@ class ResizeAttributeError(BaseException):
 
     def __init__(self, message):
         self.message = message
+
+
+class OverlaySizeError(BaseException):
+    """Raised when one image can't be overlaid onto another."""
+
+    def __init__(self, message):
+        self.message = message

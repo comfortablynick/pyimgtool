@@ -11,6 +11,7 @@ from PIL import Image, ImageDraw, ImageFont, ImageStat
 
 from pyimgtool.commands.resize import resize_height
 from pyimgtool.data_structures import Position, Size
+from pyimgtool.exceptions import OverlaySizeError
 from pyimgtool.utils import Log, get_pkg_root, show_image_cv2, show_image_plt
 
 LOG = logging.getLogger(__name__)
@@ -27,10 +28,10 @@ def get_region_stats(im: Image, region: list) -> ImageStat:
     Returns: ImageStat object with stats
     """
     image_l = im.convert("L")
-    mask = Image.new("L", image_l.size, 0)
-    drawing_layer = ImageDraw.Draw(mask)
+    m = Image.new("L", image_l.size, 0)
+    drawing_layer = ImageDraw.Draw(m)
     drawing_layer.rectangle(region, fill=255)
-    return ImageStat.Stat(image_l, mask=mask)
+    return ImageStat.Stat(image_l, mask=m)
 
 
 def find_best_location(im: Image, size: Size, padding: float) -> Position:
@@ -89,6 +90,70 @@ def find_best_location(im: Image, size: Size, padding: float) -> Position:
     )
     minimum = min(vars)
     index = vars.index(minimum)
+    locations = [
+        Position.BOTTOM_LEFT,
+        Position.BOTTOM_RIGHT,
+        Position.TOP_LEFT,
+        Position.TOP_RIGHT,
+        Position.BOTTOM_CENTER,
+    ]
+    return locations[index]
+
+
+def find_best_position(im: Image, size: Size, padding: float) -> Position:
+    """Find the best location for the watermark.
+
+    The best location is the one with least luminance variance.
+
+    Args:
+        im: PIL Image
+        size: Size of watermark image
+        padding: Proportion of padding to add around watermark
+
+    Returns: Position object
+    """
+    im_size = Size(*im.size)
+    bl_padding = tuple(
+        map(
+            lambda x: int(x),
+            [padding * im_size.w, im_size.h - size.h - padding * im_size.h],
+        )
+    )
+    br_padding = tuple(
+        map(
+            lambda x: int(x),
+            [
+                im_size.w - size.w - padding * im_size.w,
+                im_size.h - size.h - padding * im_size.h,
+            ],
+        )
+    )
+    tl_padding = tuple(
+        map(lambda x: int(x), [padding * im_size.w, padding * im_size.w])
+    )
+    tr_padding = tuple(
+        map(
+            lambda x: int(x),
+            [im_size.w - size.w - padding * im_size.w, padding * im_size.h],
+        )
+    )
+    bc_padding = tuple(
+        map(
+            lambda x: int(x),
+            [im_size.w / 2 - size.w / 2, im_size.h - size.h - padding * im_size.h,],
+        )
+    )
+    paddings = [bl_padding, br_padding, tl_padding, tr_padding, bc_padding]
+    stats = list(
+        map(
+            lambda padding: get_region_stats(
+                im, [padding, (padding[0] + size.w, padding[1] + size.h)]
+            ).stddev[0],
+            paddings,
+        )
+    )
+    minimum = min(stats)
+    index = stats.index(minimum)
     locations = [
         Position.BOTTOM_LEFT,
         Position.BOTTOM_RIGHT,
@@ -221,6 +286,67 @@ def with_image_opencv(
     # show_image_cv2(output)
     # show_image_plt(output)
     return output.astype(orig_im_type)
+
+
+@Log(LOG)
+def overlay_transparent(
+    background: np.ndarray,
+    overlay: np.ndarray,
+    position: Position = Position.BOTTOM_LEFT,
+    alpha: float = 0.3,
+) -> np.ndarray:
+    """Blend an image with an overlay (e.g., watermark).
+
+    Parameters
+    ----------
+    background
+        Main image
+    overlay
+        Image to belend on top of `background`
+    position
+        Location of overlay
+    alpha
+        Blend opacity, from 0 to 1
+
+    Returns
+    -------
+    Image
+
+    Raises
+    ------
+    OverlaySizeError
+        If overlay image is larger than background image
+    """
+    bg_h, bg_w = background.shape[:2]
+    h, w, c = overlay.shape
+    x, y = position.calculate_for_overlay(
+        Size.from_np(background), Size.from_np(overlay)
+    )
+    if x >= bg_w or y >= bg_h:
+        message = f"Overlay size of {Size(w, h)} are too large for background size {Size(bg_w, bg_h)}"
+        raise OverlaySizeError(message)
+
+    if x + w > bg_w:
+        w = bg_w - x
+        overlay = overlay[:, :w]
+
+    if y + h > bg_h:
+        h = bg_h - y
+        overlay = overlay[:h]
+
+    if c < 4:
+        overlay = np.concatenate(
+            [overlay, np.ones((h, w, 1), dtype=overlay.dtype) * 255,], axis=2,
+        )
+
+    overlay_image = overlay[..., :3]
+    mask = overlay_image / 255.0 * alpha
+
+    background[y : y + h, x : x + w] = (1.0 - mask) * background[
+        y : y + h, x : x + w
+    ] + mask * overlay_image
+
+    return background
 
 
 def with_text(

@@ -32,7 +32,6 @@ class Position(Enum):
         """Return string representation of enum."""
         return str(self)
 
-    @Log(LOG)
     def calculate_for_overlay(
         self, im_size: Size, overlay_size: Size
     ) -> Tuple[int, int]:

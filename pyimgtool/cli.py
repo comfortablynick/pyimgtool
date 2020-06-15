@@ -174,13 +174,16 @@ def main():
             )
         elif cmd == "watermark2":
             watermark_image = cv2.imread(arg.image.name, cv2.IMREAD_UNCHANGED)
-            im = watermark.with_image_opencv(
-                im,
-                watermark_image,
-                scale=arg.scale,
-                position=arg.position,
-                opacity=arg.opacity,
-                padding=arg.margin,
+            # im = watermark.with_image_opencv(
+            #     im,
+            #     watermark_image,
+            #     scale=arg.scale,
+            #     position=arg.position,
+            #     opacity=arg.opacity,
+            #     padding=arg.margin,
+            # )
+            im = watermark.overlay_transparent(
+                im, watermark_image, position=arg.position, alpha=arg.opacity
             )
         elif cmd == "sharpen":
             im = sharpen.unsharp_mask(im, amount=arg.amount, threshold=arg.threshold)
