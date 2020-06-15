@@ -9,6 +9,8 @@ from typing import Tuple
 
 import numpy as np
 
+from pyimgtool.utils import Log
+
 LOG = logging.getLogger(__name__)
 
 
@@ -29,6 +31,45 @@ class Position(Enum):
     def __repr__(self):
         """Return string representation of enum."""
         return str(self)
+
+    @Log(LOG)
+    def calculate_for_overlay(
+        self, im_size: Size, overlay_size: Size
+    ) -> Tuple[int, int]:
+        """Calculate position based on x, y dimensions.
+
+        Parameters
+        -----------
+        im_size
+            Size of target image
+        overlay_size
+            Size of overlay
+
+        Returns
+        -------
+        Start position of overlay (x, y)
+        """
+        w, h = tuple(im_size)
+        wW, wH = tuple(overlay_size)
+        if self == Position.TOP_LEFT:
+            hh = 0
+            ww = 0
+        elif self == Position.TOP_RIGHT:
+            hh = 0
+            ww = w - wW
+        elif self == Position.CENTER:
+            hh = (h - wH) // 2
+            ww = (w - wW) // 2
+        elif self == Position.BOTTOM_LEFT:
+            hh = h - wH
+            ww = 0
+        elif self == Position.BOTTOM_CENTER:
+            hh = h - wH
+            ww = (w - wW) // 2
+        elif self == Position.BOTTOM_RIGHT:
+            hh = h - wH
+            ww = w - wW
+        return ww, hh
 
     @staticmethod
     def argparse(s):
@@ -52,6 +93,7 @@ class Size:
         width: Width of image (None -> 0)
         height: Height of image (None -> 0)
     """
+
     width: int = 0
     height: int = 0
 

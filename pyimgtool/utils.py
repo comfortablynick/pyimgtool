@@ -125,7 +125,7 @@ def show_image_plt(im: np.ndarray):
         return
     plt.set_loglevel("info")
     plt.figure()
-    plt.imshow(im)
+    plt.imshow(im.astype(np.uint8))
     plt.show()
 
 
@@ -138,7 +138,7 @@ def show_image_cv2(im: np.ndarray):
         "image",
         flags=cv2.WINDOW_NORMAL | cv2.WINDOW_KEEPRATIO | cv2.WINDOW_GUI_EXPANDED,
     )
-    cv2.imshow("image", im)
+    cv2.imshow("image", im.astype(np.uint8))
 
     cv2.waitKey(0)
 

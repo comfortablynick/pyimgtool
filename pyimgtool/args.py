@@ -155,7 +155,9 @@ def parse_args(args: List[str]) -> OrderedNamespace:
         "-V", "--version", action="version", version=f"%(prog)s {__version__}"
     )
     commands = parser.add_subparsers(
-        title="commands", description="image operations (may be chained)", metavar="COMMAND"
+        title="commands",
+        description="image operations (may be chained)",
+        metavar="COMMAND",
     )
 
     # Commands
@@ -246,6 +248,13 @@ def parse_args(args: List[str]) -> OrderedNamespace:
         metavar="IMAGE",
     )
     watermark_cmd.add_argument(
+        "-m",
+        "--margin",
+        help="padding around watermark (in pixels)",
+        type=int,
+        default=10,
+    )
+    watermark_cmd.add_argument(
         "-r",
         "--rotation",
         help="angle of watermark rotation",
@@ -282,6 +291,13 @@ def parse_args(args: List[str]) -> OrderedNamespace:
         help="image file to use as watermark",
         type=argparse.FileType("rb"),
         metavar="IMAGE",
+    )
+    watermark2_cmd.add_argument(
+        "-m",
+        "--margin",
+        help="padding around watermark (in pixels)",
+        type=int,
+        default=10,
     )
     watermark2_cmd.add_argument(
         "-r",

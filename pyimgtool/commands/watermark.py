@@ -3,15 +3,15 @@
 import logging
 from datetime import datetime
 from pathlib import PurePath
-from typing import Dict, Any
-import numpy as np
-import cv2
+from typing import Any, Dict
 
+import cv2
+import numpy as np
 from PIL import Image, ImageDraw, ImageFont, ImageStat
 
 from pyimgtool.commands.resize import resize_height
-from pyimgtool.data_structures import Size, Position
-from pyimgtool.utils import get_pkg_root, Log
+from pyimgtool.data_structures import Position, Size
+from pyimgtool.utils import Log, get_pkg_root, show_image_cv2, show_image_plt
 
 LOG = logging.getLogger(__name__)
 
@@ -125,7 +125,7 @@ def with_image(
     im: Image,
     watermark_image: Image,
     scale: float = 0.2,
-    position: Position = None,
+    position: Position = Position.BOTTOM_RIGHT,
     opacity: float = 0.3,
     padding: int = 10,
 ) -> Image:
@@ -157,13 +157,14 @@ def with_image(
     offset_y = padding
     watermark_size = Size(watermark_image.width, watermark_image.height)
     mask = watermark_image.split()[3].point(lambda i: i * opacity)
-    pos = (
-        (im.width - watermark_image.width - offset_x),
-        (im.height - watermark_image.height - offset_y),
-    )
+    # pos = (
+    #     (im.width - watermark_image.width - offset_x),
+    #     (im.height - watermark_image.height - offset_y),
+    # )
     loc = find_best_location(im, watermark_size, 0.05)
     LOG.debug("Best detected watermark loc: %s", loc)
-    im.paste(watermark_image, pos, mask)
+    x, y = position.calculate_for_overlay(Size(*im.size), watermark_size)
+    im.paste(watermark_image, (x, y), mask)
     return im
 
 
@@ -189,35 +190,37 @@ def with_image_opencv(
     Returns: Watermarked image array
     """
     LOG.info("Inserting watermark at position: %s", position)
-    wH, wW = watermark_image.shape[:2]
-    new_size = Size.calculate_new(Size(wW, wH), scale)
+    orig_im_type = im.dtype
+    new_size = Size.calculate_new(Size.from_np(watermark_image), scale)
     watermark_image = cv2.resize(
-        watermark_image, (new_size.width, new_size.height), interpolation=cv2.INTER_AREA
+        watermark_image, tuple(new_size), interpolation=cv2.INTER_AREA
+    )
+    watermark_image = cv2.copyMakeBorder(
+        watermark_image,
+        padding,
+        padding,
+        padding,
+        padding,
+        cv2.BORDER_CONSTANT,
+        value=(0, 0, 0),
     )
     wH, wW = watermark_image.shape[:2]
     h, w = im.shape[:2]
-    im = np.dstack([im, np.ones((h, w), dtype=np.uint8) * 255])
+    im = np.dstack([im, np.ones((h, w), dtype=im.dtype)])
     # construct an overlay that is the same size as the input
     # image, (using an extra dimension for the alpha transparency),
     # then add the watermark to the overlay in the bottom-right
     # corner
-    overlay = np.zeros((h, w, 4), dtype=np.uint8)
-    hh, ww = 0, 0
-    if position == Position.TOP_LEFT:
-        hh = 0
-        ww = 0
-    if position == Position.CENTER:
-        hh = (h - wH) // 2
-        ww = (w - wW) // 2
-    elif position == Position.BOTTOM_RIGHT:
-        hh = h - wH
-        ww = w - wW
+    overlay = np.zeros((h, w, 4), dtype=im.dtype)
+    ww, hh = position.calculate_for_overlay(Size(w, h), Size(wW, wH))
     LOG.debug("hh: %d, ww: %d", hh, ww)
-    overlay[hh + padding : hh + wH + padding, ww + padding : ww + wH + padding] = watermark_image
+    overlay[hh : hh + wH, ww : ww + wH] = watermark_image
     # blend the two images together using transparent overlays
     output = im.copy()
     cv2.addWeighted(overlay, opacity, output, 1.0, 0, output)
-    return output
+    # show_image_cv2(output)
+    # show_image_plt(output)
+    return output.astype(orig_im_type)
 
 
 def with_text(

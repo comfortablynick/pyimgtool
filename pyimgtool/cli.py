@@ -169,6 +169,7 @@ def main():
                 Image.open(arg.image),
                 scale=arg.scale,
                 position=arg.position,
+                padding=arg.margin,
                 opacity=arg.opacity,
             )
         elif cmd == "watermark2":
@@ -179,6 +180,7 @@ def main():
                 scale=arg.scale,
                 position=arg.position,
                 opacity=arg.opacity,
+                padding=arg.margin,
             )
         elif cmd == "sharpen":
             im = sharpen.unsharp_mask(im, amount=arg.amount, threshold=arg.threshold)
