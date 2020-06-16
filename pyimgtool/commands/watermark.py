@@ -47,50 +47,32 @@ def find_best_location(im: Image, size: Size, padding: float) -> Position:
 
     Returns: Position object
     """
-    bl_padding = tuple(
-        map(
-            lambda x: int(x),
-            [padding * im.size[0], im.size[1] - size.height - padding * im.size[1]],
-        )
+    bl_padding = (
+        padding * im.size[0],
+        im.size[1] - size.height - padding * im.size[1],
     )
-    br_padding = tuple(
-        map(
-            lambda x: int(x),
-            [
-                im.size[0] - size.width - padding * im.size[0],
-                im.size[1] - size.height - padding * im.size[1],
-            ],
-        )
+    br_padding = (
+        im.size[0] - size.width - padding * im.size[0],
+        im.size[1] - size.height - padding * im.size[1],
     )
-    tl_padding = tuple(
-        map(lambda x: int(x), [padding * im.size[0], padding * im.size[0]])
+    tl_padding = (padding * im.size[0], padding * im.size[0])
+    tr_padding = (im.size[0] - size.width - padding * im.size[0], padding * im.size[1])
+    bc_padding = (
+        im.size[0] / 2 - size.width / 2,
+        im.size[1] - size.height - padding * im.size[1],
     )
-    tr_padding = tuple(
-        map(
-            lambda x: int(x),
-            [im.size[0] - size.width - padding * im.size[0], padding * im.size[1]],
-        )
-    )
-    bc_padding = tuple(
-        map(
-            lambda x: int(x),
-            [
-                im.size[0] / 2 - size.width / 2,
-                im.size[1] - size.height - padding * im.size[1],
-            ],
-        )
-    )
-    paddings = [bl_padding, br_padding, tl_padding, tr_padding, bc_padding]
-    vars = list(
-        map(
-            lambda padding: get_region_stats(
-                im, [padding, (padding[0] + size.width, padding[1] + size.height)]
-            ).stddev[0],
-            paddings,
-        )
-    )
-    minimum = min(vars)
-    index = vars.index(minimum)
+    paddings = [
+        tuple(int(x) for x in t)
+        for t in [bl_padding, br_padding, tl_padding, tr_padding, bc_padding]
+    ]
+    stats = [
+        get_region_stats(
+            im, [padding, (padding[0] + size.width, padding[1] + size.height)]
+        ).stddev[0]
+        for padding in paddings
+    ]
+    LOG.debug("stats: %s", stats)
+    index = stats.index(min(stats))
     locations = [
         Position.BOTTOM_LEFT,
         Position.BOTTOM_RIGHT,
@@ -113,48 +95,32 @@ def find_best_position(im: Image, size: Size, padding: float) -> Position:
 
     Returns: Position object
     """
-    im_size = Size(*im.size)
-    bl_padding = tuple(
-        map(
-            lambda x: int(x),
-            [padding * im_size.w, im_size.h - size.h - padding * im_size.h],
-        )
+    bl_padding = (
+        padding * im.size[0],
+        im.size[1] - size.height - padding * im.size[1],
     )
-    br_padding = tuple(
-        map(
-            lambda x: int(x),
-            [
-                im_size.w - size.w - padding * im_size.w,
-                im_size.h - size.h - padding * im_size.h,
-            ],
-        )
+    br_padding = (
+        im.size[0] - size.width - padding * im.size[0],
+        im.size[1] - size.height - padding * im.size[1],
     )
-    tl_padding = tuple(
-        map(lambda x: int(x), [padding * im_size.w, padding * im_size.w])
+    tl_padding = (padding * im.size[0], padding * im.size[0])
+    tr_padding = (im.size[0] - size.width - padding * im.size[0], padding * im.size[1])
+    bc_padding = (
+        im.size[0] / 2 - size.width / 2,
+        im.size[1] - size.height - padding * im.size[1],
     )
-    tr_padding = tuple(
-        map(
-            lambda x: int(x),
-            [im_size.w - size.w - padding * im_size.w, padding * im_size.h],
-        )
-    )
-    bc_padding = tuple(
-        map(
-            lambda x: int(x),
-            [im_size.w / 2 - size.w / 2, im_size.h - size.h - padding * im_size.h],
-        )
-    )
-    paddings = [bl_padding, br_padding, tl_padding, tr_padding, bc_padding]
-    stats = list(
-        map(
-            lambda padding: get_region_stats(
-                im, [padding, (padding[0] + size.w, padding[1] + size.h)]
-            ).stddev[0],
-            paddings,
-        )
-    )
-    minimum = min(stats)
-    index = stats.index(minimum)
+    paddings = [
+        tuple(int(x) for x in t)
+        for t in [bl_padding, br_padding, tl_padding, tr_padding, bc_padding]
+    ]
+    stats = [
+        get_region_stats(
+            im, [padding, (padding[0] + size.width, padding[1] + size.height)]
+        ).stddev[0]
+        for padding in paddings
+    ]
+    LOG.debug("find_best_position() stats: %s", stats)
+    index = stats.index(min(stats))
     locations = [
         Position.BOTTOM_LEFT,
         Position.BOTTOM_RIGHT,
@@ -322,6 +288,10 @@ def overlay_transparent(
     x, y = position.calculate_for_overlay(
         Size.from_np(background), Size.from_np(overlay)
     )
+    best_pos = find_best_location(
+        Image.fromarray(background), Size.from_np(overlay), padding
+    )
+    LOG.debug("Best calculated position: %s", best_pos)
     if padding is not None:
         # TODO: calculate margin properly for all positions
         margin = int(min(i * padding for i in (w, h)))
