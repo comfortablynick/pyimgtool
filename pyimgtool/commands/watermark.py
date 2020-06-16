@@ -3,7 +3,7 @@
 import logging
 from datetime import datetime
 from pathlib import PurePath
-from typing import Any, Dict
+from typing import Any, Dict, Tuple
 
 import cv2
 import numpy as np
@@ -12,7 +12,7 @@ from PIL import Image, ImageDraw, ImageFont, ImageStat
 # from pyimgtool.utils import Log, get_pkg_root, show_image_cv2, show_image_plt
 from pyimgtool import utils
 from pyimgtool.commands.resize import resize_height
-from pyimgtool.data_structures import Position, Size
+from pyimgtool.data_structures import Position, Size, Stat
 from pyimgtool.exceptions import OverlaySizeError
 
 LOG = logging.getLogger(__name__)
@@ -36,12 +36,12 @@ def get_region_stats(im: Image, region: list) -> ImageStat:
     return ImageStat.Stat(image_l, mask=m)
 
 
-def get_region_stddev(im: np.ndarray, region: list):
+def get_region_stats_np(im: np.ndarray, region: list) -> Stat:
     """Get region stats."""
-    LOG.debug("Region for stats np: %s", region)
     x0, y0 = region[0]
     x1, y1 = region[1]
-    return np.std(im[y0:y1, x0:x1])
+    im = im[y0:y1, x0:x1]
+    return Stat(stddev=np.std(im), mean=np.mean(im))
 
 
 def find_best_location(im: Image, size: Size, padding: float) -> Position:
@@ -105,7 +105,7 @@ def find_best_position(im: Image, size: Size, padding: float) -> Position:
     Returns: Position object
     """
     im_size = Size(*im.size)
-    LOG.debug("size submitted %s", size)
+    # TODO: iterate through these and add end pos; calculate once and return
     bl_start = Position.BOTTOM_LEFT.calculate_for_overlay(im_size, size, padding)
     br_start = Position.BOTTOM_RIGHT.calculate_for_overlay(im_size, size, padding)
     tl_start = Position.TOP_LEFT.calculate_for_overlay(im_size, size, padding)
@@ -116,14 +116,21 @@ def find_best_position(im: Image, size: Size, padding: float) -> Position:
         for t in [bl_start, br_start, tl_start, tr_start, bc_start]
     ]
     LOG.debug("Start positions: %s", start_positions)
-    im = cv2.cvtColor(np.asarray(im), cv2.COLOR_RGB2GRAY)
+    im = np.asarray(im)
+    im = cv2.cvtColor(im, cv2.COLOR_RGB2GRAY)
+    im = im.astype(np.float64)
     # utils.show_image_cv2(im)
     stats = [
-        get_region_stddev(im, [pos, (pos[0] + size.width, pos[1] + size.height)],)
+        get_region_stats_np(im, [pos, (pos[0] + size.width, pos[1] + size.height)],)
         for pos in start_positions
     ]
     LOG.debug("find_best_position() stats: %s", stats)
-    index = stats.index(min(stats))
+    stddev, mean = [], []
+    for s in stats:
+        stddev.append(s.stddev)
+        mean.append(s.mean)
+    index = stddev.index(min(stddev))
+    # TODO: return Position, (start, end), Stat
     locations = [
         Position.BOTTOM_LEFT,
         Position.BOTTOM_RIGHT,
@@ -258,7 +265,7 @@ def overlay_transparent(
     background: np.ndarray,
     overlay: np.ndarray,
     scale: float = None,
-    position: Position = Position.BOTTOM_LEFT,
+    position: Position = None,
     padding: float = 0.05,
     alpha: float = 0.3,
 ) -> np.ndarray:
@@ -288,22 +295,19 @@ def overlay_transparent(
     if scale is not None:
         overlay = cv2.resize(overlay, None, fx=scale, fy=scale)
     h, w, c = overlay.shape
-    x, y = position.calculate_for_overlay(
-        Size.from_np(background), Size.from_np(overlay)
+    LOG.debug(
+        "Calculated margin for overlay: %s", Size(*[int(i * padding) for i in (w, h)])
     )
-    margin = 0
-    if padding is not None:
-        # TODO: calculate margin properly for all positions
-        margin = int(min(i * padding for i in (w, h)))
-        LOG.debug("Watermark margin: %d px", margin)
-        x = x + margin
-        y = y + margin
+    if position is None:
+        im_pil = Image.fromarray(background)
+        position = find_best_position(im_pil, Size(w, h), padding)
+        LOG.debug("Best calculated position: %s", position)
+    x, y = position.calculate_for_overlay(
+        Size.from_np(background), Size.from_np(overlay), padding
+    )
     if x > bg_w or y > bg_h:
         message = f"Overlay size of {Size(w, h)} is too large for image size {Size(bg_w, bg_h)}"
         raise OverlaySizeError(message)
-    im_pil = Image.fromarray(background)
-    best_pos = find_best_position(im_pil, Size(w, h), padding)
-    LOG.debug("Best calculated position: %s", best_pos)
     if x + w > bg_w:
         w = bg_w - x
         overlay = overlay[:, :w]
@@ -321,9 +325,10 @@ def overlay_transparent(
     overlay_image = overlay[..., :3]
     mask = overlay_image / 255.0 * alpha
 
+    # TODO: if mean/256 > 0.5, invert watermark (~watermark)
     background[y : y + h, x : x + w] = (1.0 - mask) * background[
         y : y + h, x : x + w
-    ] + mask * overlay_image
+    ] + mask * (~overlay_image if True else overlay_image)
     return background
 
 

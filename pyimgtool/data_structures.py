@@ -209,3 +209,11 @@ class Size:
             return calc_size
         LOG.info("No new width, height, or pct scale supplied; using current dims")
         return orig_size
+
+
+@dataclass
+class Stat:
+    """Image statistics."""
+
+    stddev: float = 0
+    mean: float = 0

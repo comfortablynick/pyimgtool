@@ -315,7 +315,7 @@ def parse_args(args: List[str]) -> OrderedNamespace:
         "--position",
         help="watermark position",
         metavar="POSITION",
-        default=Position.BOTTOM_RIGHT,
+        default=None,
         type=Position.argparse,
         choices=list(Position),
     )

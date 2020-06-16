@@ -19,8 +19,12 @@ from sty import ef, fg, rs
 from pyimgtool.args import parse_args
 from pyimgtool.commands import mat, resize, sharpen, watermark
 from pyimgtool.data_structures import Size
-from pyimgtool.exceptions import (ImageTooSmallError, ResizeAttributeError,
-                                  ResizeNotNeededError, OverlaySizeError)
+from pyimgtool.exceptions import (
+    ImageTooSmallError,
+    OverlaySizeError,
+    ResizeAttributeError,
+    ResizeNotNeededError,
+)
 from pyimgtool.utils import humanize_bytes
 
 logging.basicConfig(level=logging.WARNING)
