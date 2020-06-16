@@ -33,7 +33,7 @@ class Position(Enum):
         return str(self)
 
     def calculate_for_overlay(
-        self, im_size: Size, overlay_size: Size
+        self, im_size: Size, overlay_size: Size, padding: float = 0.0
     ) -> Tuple[int, int]:
         """Calculate position based on x, y dimensions.
 
@@ -43,6 +43,8 @@ class Position(Enum):
             Size of target image
         overlay_size
             Size of overlay
+        padding
+            Number to multiply by overlay size to add padding
 
         Returns
         -------
@@ -50,24 +52,26 @@ class Position(Enum):
         """
         w, h = tuple(im_size)
         wW, wH = tuple(overlay_size)
+        pW = int(wW * padding)
+        pH = int(wH * padding)
         if self == Position.TOP_LEFT:
-            hh = 0
-            ww = 0
+            hh = pH
+            ww = pW
         elif self == Position.TOP_RIGHT:
-            hh = 0
-            ww = w - wW
+            hh = pH
+            ww = w - wW - pW
         elif self == Position.CENTER:
             hh = (h - wH) // 2
             ww = (w - wW) // 2
         elif self == Position.BOTTOM_LEFT:
-            hh = h - wH
-            ww = 0
+            hh = h - wH - pH
+            ww = pW
         elif self == Position.BOTTOM_CENTER:
-            hh = h - wH
+            hh = h - wH - pH
             ww = (w - wW) // 2
         elif self == Position.BOTTOM_RIGHT:
-            hh = h - wH
-            ww = w - wW
+            hh = h - wH - pH
+            ww = w - wW - pW
         return ww, hh
 
     @staticmethod

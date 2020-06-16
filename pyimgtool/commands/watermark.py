@@ -28,11 +28,20 @@ def get_region_stats(im: Image, region: list) -> ImageStat:
 
     Returns: ImageStat object with stats
     """
+    LOG.debug("Region for stats: %s", region)
     image_l = im.convert("L")
     m = Image.new("L", image_l.size, 0)
     drawing_layer = ImageDraw.Draw(m)
     drawing_layer.rectangle(region, fill=255)
     return ImageStat.Stat(image_l, mask=m)
+
+
+def get_region_stddev(im: np.ndarray, region: list):
+    """Get region stats."""
+    LOG.debug("Region for stats np: %s", region)
+    x0, y0 = region[0]
+    x1, y1 = region[1]
+    return np.std(im[y0:y1, x0:x1])
 
 
 def find_best_location(im: Image, size: Size, padding: float) -> Position:
@@ -95,29 +104,23 @@ def find_best_position(im: Image, size: Size, padding: float) -> Position:
 
     Returns: Position object
     """
-    bl_padding = (
-        padding * im.size[0],
-        im.size[1] - size.height - padding * im.size[1],
-    )
-    br_padding = (
-        im.size[0] - size.width - padding * im.size[0],
-        im.size[1] - size.height - padding * im.size[1],
-    )
-    tl_padding = (padding * im.size[0], padding * im.size[0])
-    tr_padding = (im.size[0] - size.width - padding * im.size[0], padding * im.size[1])
-    bc_padding = (
-        im.size[0] / 2 - size.width / 2,
-        im.size[1] - size.height - padding * im.size[1],
-    )
-    paddings = [
+    im_size = Size(*im.size)
+    LOG.debug("size submitted %s", size)
+    bl_start = Position.BOTTOM_LEFT.calculate_for_overlay(im_size, size, padding)
+    br_start = Position.BOTTOM_RIGHT.calculate_for_overlay(im_size, size, padding)
+    tl_start = Position.TOP_LEFT.calculate_for_overlay(im_size, size, padding)
+    tr_start = Position.TOP_RIGHT.calculate_for_overlay(im_size, size, padding)
+    bc_start = Position.BOTTOM_CENTER.calculate_for_overlay(im_size, size, padding)
+    start_positions = [
         tuple(int(x) for x in t)
-        for t in [bl_padding, br_padding, tl_padding, tr_padding, bc_padding]
+        for t in [bl_start, br_start, tl_start, tr_start, bc_start]
     ]
+    LOG.debug("Start positions: %s", start_positions)
+    im = cv2.cvtColor(np.asarray(im), cv2.COLOR_RGB2GRAY)
+    # utils.show_image_cv2(im)
     stats = [
-        get_region_stats(
-            im, [padding, (padding[0] + size.width, padding[1] + size.height)]
-        ).stddev[0]
-        for padding in paddings
+        get_region_stddev(im, [pos, (pos[0] + size.width, pos[1] + size.height)],)
+        for pos in start_positions
     ]
     LOG.debug("find_best_position() stats: %s", stats)
     index = stats.index(min(stats))
@@ -288,10 +291,7 @@ def overlay_transparent(
     x, y = position.calculate_for_overlay(
         Size.from_np(background), Size.from_np(overlay)
     )
-    best_pos = find_best_location(
-        Image.fromarray(background), Size.from_np(overlay), padding
-    )
-    LOG.debug("Best calculated position: %s", best_pos)
+    margin = 0
     if padding is not None:
         # TODO: calculate margin properly for all positions
         margin = int(min(i * padding for i in (w, h)))
@@ -301,7 +301,9 @@ def overlay_transparent(
     if x > bg_w or y > bg_h:
         message = f"Overlay size of {Size(w, h)} is too large for image size {Size(bg_w, bg_h)}"
         raise OverlaySizeError(message)
-
+    im_pil = Image.fromarray(background)
+    best_pos = find_best_position(im_pil, Size(w, h), padding)
+    LOG.debug("Best calculated position: %s", best_pos)
     if x + w > bg_w:
         w = bg_w - x
         overlay = overlay[:, :w]

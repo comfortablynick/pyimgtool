@@ -157,4 +157,4 @@ def np_repr(array: np.ndarray) -> str:
     -------
     Formatted string
     """
-    return "ndarray({}, {}, {}, dtype={})".format(*array.shape, array.dtype)
+    return f"ndarray({array.shape} dtype={array.dtype})"
