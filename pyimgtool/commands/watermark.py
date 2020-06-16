@@ -9,10 +9,11 @@ import cv2
 import numpy as np
 from PIL import Image, ImageDraw, ImageFont, ImageStat
 
+# from pyimgtool.utils import Log, get_pkg_root, show_image_cv2, show_image_plt
+from pyimgtool import utils
 from pyimgtool.commands.resize import resize_height
 from pyimgtool.data_structures import Position, Size
 from pyimgtool.exceptions import OverlaySizeError
-from pyimgtool.utils import Log, get_pkg_root, show_image_cv2, show_image_plt
 
 LOG = logging.getLogger(__name__)
 
@@ -140,7 +141,7 @@ def find_best_position(im: Image, size: Size, padding: float) -> Position:
     bc_padding = tuple(
         map(
             lambda x: int(x),
-            [im_size.w / 2 - size.w / 2, im_size.h - size.h - padding * im_size.h,],
+            [im_size.w / 2 - size.w / 2, im_size.h - size.h - padding * im_size.h],
         )
     )
     paddings = [bl_padding, br_padding, tl_padding, tr_padding, bc_padding]
@@ -218,8 +219,8 @@ def with_image(
             watermark_image, (int(im.width * scale), int(im.height * scale)),
         )
         LOG.debug("New watermark dims: %s", watermark_image.size)
-    offset_x = padding
-    offset_y = padding
+    # offset_x = padding
+    # offset_y = padding
     watermark_size = Size(watermark_image.width, watermark_image.height)
     mask = watermark_image.split()[3].point(lambda i: i * opacity)
     # pos = (
@@ -233,7 +234,7 @@ def with_image(
     return im
 
 
-@Log(LOG)
+@utils.Log(LOG)
 def with_image_opencv(
     im: np.ndarray,
     watermark_image: np.ndarray,
@@ -272,27 +273,24 @@ def with_image_opencv(
     wH, wW = watermark_image.shape[:2]
     h, w = im.shape[:2]
     im = np.dstack([im, np.ones((h, w), dtype=im.dtype)])
-    # construct an overlay that is the same size as the input
-    # image, (using an extra dimension for the alpha transparency),
-    # then add the watermark to the overlay in the bottom-right
-    # corner
     overlay = np.zeros((h, w, 4), dtype=im.dtype)
     ww, hh = position.calculate_for_overlay(Size(w, h), Size(wW, wH))
     LOG.debug("hh: %d, ww: %d", hh, ww)
     overlay[hh : hh + wH, ww : ww + wH] = watermark_image
-    # blend the two images together using transparent overlays
     output = im.copy()
     cv2.addWeighted(overlay, opacity, output, 1.0, 0, output)
-    # show_image_cv2(output)
-    # show_image_plt(output)
+    # utils.show_image_cv2(output)
+    # utils.show_image_plt(output)
     return output.astype(orig_im_type)
 
 
-@Log(LOG)
+@utils.Log(LOG)
 def overlay_transparent(
     background: np.ndarray,
     overlay: np.ndarray,
+    scale: float = None,
     position: Position = Position.BOTTOM_LEFT,
+    padding: float = 0.05,
     alpha: float = 0.3,
 ) -> np.ndarray:
     """Blend an image with an overlay (e.g., watermark).
@@ -318,12 +316,20 @@ def overlay_transparent(
         If overlay image is larger than background image
     """
     bg_h, bg_w = background.shape[:2]
+    if scale is not None:
+        overlay = cv2.resize(overlay, None, fx=scale, fy=scale)
     h, w, c = overlay.shape
     x, y = position.calculate_for_overlay(
         Size.from_np(background), Size.from_np(overlay)
     )
-    if x >= bg_w or y >= bg_h:
-        message = f"Overlay size of {Size(w, h)} are too large for background size {Size(bg_w, bg_h)}"
+    if padding is not None:
+        # TODO: calculate margin properly for all positions
+        margin = int(min(i * padding for i in (w, h)))
+        LOG.debug("Watermark margin: %d px", margin)
+        x = x + margin
+        y = y + margin
+    if x > bg_w or y > bg_h:
+        message = f"Overlay size of {Size(w, h)} is too large for image size {Size(bg_w, bg_h)}"
         raise OverlaySizeError(message)
 
     if x + w > bg_w:
@@ -335,17 +341,17 @@ def overlay_transparent(
         overlay = overlay[:h]
 
     if c < 4:
+        shape = h, w, 1
+        LOG.debug("Adding alpha channel for overlay of shape: %s", shape)
         overlay = np.concatenate(
-            [overlay, np.ones((h, w, 1), dtype=overlay.dtype) * 255,], axis=2,
+            [overlay, np.ones(shape, dtype=overlay.dtype) * 255], axis=2,
         )
-
     overlay_image = overlay[..., :3]
     mask = overlay_image / 255.0 * alpha
 
     background[y : y + h, x : x + w] = (1.0 - mask) * background[
         y : y + h, x : x + w
     ] + mask * overlay_image
-
     return background
 
 
@@ -388,7 +394,9 @@ def with_text(
 
     try:
         font_path = str(
-            PurePath.joinpath(get_pkg_root(), "fonts", "SourceSansPro-Regular.ttf")
+            PurePath.joinpath(
+                utils.get_pkg_root(), "fonts", "SourceSansPro-Regular.ttf"
+            )
         )
         font = ImageFont.truetype(font=font_path, size=font_size)
     except OSError:
@@ -423,5 +431,7 @@ def with_text(
         text_fill = 0, 0, 0, opacity
 
     d.text((offset_x, offset_y), text, font=font, fill=text_fill)
+
     out = Image.alpha_composite(im.convert("RGBA"), layer)
+
     return out.convert("RGB")

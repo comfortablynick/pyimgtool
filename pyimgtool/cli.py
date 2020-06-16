@@ -19,11 +19,8 @@ from sty import ef, fg, rs
 from pyimgtool.args import parse_args
 from pyimgtool.commands import mat, resize, sharpen, watermark
 from pyimgtool.data_structures import Size
-from pyimgtool.exceptions import (
-    ImageTooSmallError,
-    ResizeAttributeError,
-    ResizeNotNeededError,
-)
+from pyimgtool.exceptions import (ImageTooSmallError, ResizeAttributeError,
+                                  ResizeNotNeededError, OverlaySizeError)
 from pyimgtool.utils import humanize_bytes
 
 logging.basicConfig(level=logging.WARNING)
@@ -182,9 +179,18 @@ def main():
             #     opacity=arg.opacity,
             #     padding=arg.margin,
             # )
-            im = watermark.overlay_transparent(
-                im, watermark_image, position=arg.position, alpha=arg.opacity
-            )
+            try:
+                im = watermark.overlay_transparent(
+                    im,
+                    watermark_image,
+                    scale=arg.scale,
+                    padding=arg.margin,
+                    position=arg.position,
+                    alpha=arg.opacity,
+                )
+            except OverlaySizeError as e:
+                print(f"{fg.li_red}error: {e}{rs.fg}", file=sys.stderr)
+                sys.exit(1)
         elif cmd == "sharpen":
             im = sharpen.unsharp_mask(im, amount=arg.amount, threshold=arg.threshold)
         elif cmd == "save":
@@ -411,6 +417,7 @@ def generate_rgb_histogram(im: Image, show_axes: bool = False) -> str:
             )
             + "\n"
         )
+
     else:
         graph = fig.show()
     return graph

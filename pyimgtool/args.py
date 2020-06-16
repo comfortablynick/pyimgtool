@@ -295,9 +295,9 @@ def parse_args(args: List[str]) -> OrderedNamespace:
     watermark2_cmd.add_argument(
         "-m",
         "--margin",
-        help="padding around watermark (in pixels)",
-        type=int,
-        default=10,
+        help="padding around watermark (multiplied by watermark size)",
+        type=float,
+        default=0.05,
     )
     watermark2_cmd.add_argument(
         "-r",
