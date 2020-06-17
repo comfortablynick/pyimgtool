@@ -172,6 +172,7 @@ def main():
                 position=arg.position,
                 padding=arg.margin,
                 opacity=arg.opacity,
+                invert=arg.invert,
             )
         elif cmd == "watermark2":
             watermark_image = cv2.imread(arg.image.name, cv2.IMREAD_UNCHANGED)
@@ -191,6 +192,7 @@ def main():
                     padding=arg.margin,
                     position=arg.position,
                     alpha=arg.opacity,
+                    invert=arg.invert,
                 )
             except OverlaySizeError as e:
                 print(f"{fg.li_red}error: {e}{rs.fg}", file=sys.stderr)

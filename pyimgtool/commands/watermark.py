@@ -3,11 +3,12 @@
 import logging
 from datetime import datetime
 from pathlib import PurePath
-from typing import Any, Dict, Tuple
+from typing import Any, Dict, List, Tuple, Union
 
 import cv2
 import numpy as np
 from PIL import Image, ImageDraw, ImageFont, ImageStat
+from PIL.Image import Image as PILImage
 
 from pyimgtool import utils
 from pyimgtool.commands.resize import resize_height
@@ -17,13 +18,15 @@ from pyimgtool.exceptions import OverlaySizeError
 LOG = logging.getLogger(__name__)
 
 
-def get_region_stats(im: Image, region: list) -> ImageStat:
+def get_region_stats(im: PILImage, region: Box) -> ImageStat:
     """Get ImageStat object for region of PIL image.
 
-    Args:
-        im: The image to get the luminance of
-        region: The region to get the luminance of, in the form
-                [(x0, y0), (x1, y1)] or [x0, y0, x1, y1]
+    Parameters
+    ----------
+    im : PIL Image
+        The image to get the luminance of
+    region : Box
+        Coordinates for region
 
     Returns: ImageStat object with stats
     """
@@ -36,10 +39,24 @@ def get_region_stats(im: Image, region: list) -> ImageStat:
 
 
 def get_region_stats_np(im: np.ndarray, region: Box) -> Stat:
-    """Get region stats."""
+    """Get array region stats using Numpy.
+
+    Parameters
+    ----------
+    im : np.ndarray
+        Input image to analyze
+    region : Box
+        Coordinates for region
+
+    Returns
+    -------
+    Stat
+        Stat object containing various statistics of region
+    """
     x0, y0, x1, y1 = region
-    im = im[y0:y1, x0:x1]
-    return Stat(stddev=np.std(im), mean=np.mean(im))
+    dtype = np.float64
+    im = im[y0:y1, x0:x1].copy()
+    return Stat(stddev=np.std(im, dtype=dtype), mean=np.mean(im, dtype=dtype))
 
 
 def find_best_location(im: Image, size: Size, padding: float) -> Position:
@@ -74,7 +91,13 @@ def find_best_location(im: Image, size: Size, padding: float) -> Position:
     ]
     stats = [
         get_region_stats(
-            im, [padding, (padding[0] + size.width, padding[1] + size.height)]
+            im,
+            Box(
+                padding[0],
+                padding[1],
+                padding[0] + size.width,
+                padding[1] + size.height,
+            ),
         ).stddev[0]
         for padding in paddings
     ]
@@ -145,24 +168,36 @@ def get_copyright_string(exif: Dict[Any, Any]) -> str:
 
 
 def with_image(
-    im: Image,
-    watermark_image: Image,
+    im: PILImage,
+    watermark_image: PILImage,
     scale: float = 0.2,
     position: Position = Position.BOTTOM_RIGHT,
     opacity: float = 0.3,
     padding: int = 10,
-) -> Image:
+    invert: bool = False,
+) -> PILImage:
     """Watermark with image according to Config.
 
-    Args:
-        im: PIL Image
-        watermark_image: PIL Image
-        scale: Scale for watermark relative to image
-        position: Position of watermark
-        opacity: Watermark layer opacity from 0 to 1
-        padding: Pixels of padding for watermark
+    Parameters
+    ----------
+    im
+        PIL Image
+    watermark_image
+        PIL Image
+    scale
+        Scale for watermark relative to image
+    position
+        Position of watermark
+    opacity
+        Watermark layer opacity from 0 to 1
+    padding
+        Pixels of padding for watermark
+    invert
+        Invert watermark image
 
-    Returns: Watermarked image
+    Returns
+    -------
+    PIL Image with watermark
     """
     watermark_image = watermark_image.convert("RGBA")
     LOG.info("Watermark: %s", watermark_image.size)
@@ -248,6 +283,7 @@ def overlay_transparent(
     position: Position = None,
     padding: float = 0.05,
     alpha: float = 0.3,
+    invert: bool = False,
 ) -> np.ndarray:
     """Blend an image with an overlay (e.g., watermark).
 
@@ -256,11 +292,13 @@ def overlay_transparent(
     background
         Main image
     overlay
-        Image to belend on top of `background`
+        Image to blend on top of `background`
     position
         Location of overlay
     alpha
         Blend opacity, from 0 to 1
+    invert
+        Invert overlay image
 
     Returns
     -------
@@ -292,8 +330,8 @@ def overlay_transparent(
         LOG.debug("Position from args: %s=%s, %s", position, coords, stat)
     x0, y0, x1, y1 = coords
     if (x1 - x0) > bg_w or (y1 - y0) > bg_h:
-        # This shouldn't be possible, but just in case
         message = f"Overlay size of {Size(w, h)} is too large for image size {Size(bg_w, bg_h)}"
+        LOG.error("%s; this should be unreachable", message)
         raise OverlaySizeError(message)
     if c == 3:
         shape = h, w, 1
@@ -302,15 +340,20 @@ def overlay_transparent(
             [overlay, np.ones(shape, dtype=overlay.dtype) * 255], axis=2,
         )
     overlay_image = overlay[..., :3]
-    mask = overlay_image / 255.0 * alpha
+    mask = overlay_image / 256.0 * alpha
 
     # Combine images, inverting overlay if necessary
-    luminance_factor = stat.mean / 256
+    luminance_factor = stat.mean / 256.0
     invert_overlay = luminance_factor > 0.5
+    if invert_overlay:
+        overlay_image = ~overlay_image
+    if invert:
+        # Invert whether or not we automatically inverted
+        overlay_image = ~overlay_image
     LOG.debug("Luminance factor: %f; invert: %s", luminance_factor, invert_overlay)
-    background[y0:y1, x0:x1] = (1.0 - mask) * background[y0:y1, x0:x1] + mask * (
-        ~overlay_image if invert_overlay else overlay_image
-    )
+    background[y0:y1, x0:x1] = (1.0 - mask) * background[
+        y0:y1, x0:x1
+    ] + mask * overlay_image
     return background
 
 
@@ -378,7 +421,7 @@ def with_text(
     )
     # TODO: calculate watermark dims accurately
     stats = get_region_stats(
-        im, [offset_x, offset_y, text_width, im.height - text_height]
+        im, Box(offset_x, offset_y, text_width, im.height - text_height)
     )
     LOG.debug("Region luminance: %f", stats.mean[0])
     LOG.debug("Region luminance stddev: %f", stats.stddev[0])

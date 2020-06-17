@@ -248,6 +248,9 @@ def parse_args(args: List[str]) -> OrderedNamespace:
         metavar="IMAGE",
     )
     watermark_cmd.add_argument(
+        "-i", "--invert", help="invert watermark image", action="store_true"
+    )
+    watermark_cmd.add_argument(
         "-m",
         "--margin",
         help="padding around watermark (in pixels)",
@@ -291,6 +294,9 @@ def parse_args(args: List[str]) -> OrderedNamespace:
         help="image file to use as watermark",
         type=argparse.FileType("rb"),
         metavar="IMAGE",
+    )
+    watermark2_cmd.add_argument(
+        "-i", "--invert", help="invert watermark image", action="store_true"
     )
     watermark2_cmd.add_argument(
         "-m",
