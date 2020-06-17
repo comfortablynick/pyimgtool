@@ -3,13 +3,11 @@
 from __future__ import annotations
 
 import logging
-from dataclasses import dataclass
+from dataclasses import astuple, dataclass
 from enum import Enum
 from typing import Tuple
 
 import numpy as np
-
-from pyimgtool.utils import Log
 
 LOG = logging.getLogger(__name__)
 
@@ -34,7 +32,7 @@ class Position(Enum):
 
     def calculate_for_overlay(
         self, im_size: Size, overlay_size: Size, padding: float = 0.0
-    ) -> Tuple[int, int]:
+    ) -> Box:
         """Calculate position based on x, y dimensions.
 
         Parameters
@@ -48,31 +46,34 @@ class Position(Enum):
 
         Returns
         -------
-        Start position of overlay (x, y)
+        Box describing region of overlay
         """
         w, h = tuple(im_size)
         wW, wH = tuple(overlay_size)
         pW = int(wW * padding)
         pH = int(wH * padding)
+        x0, y0, x1, y1 = 0, 0, 0, 0
         if self == Position.TOP_LEFT:
-            hh = pH
-            ww = pW
+            y0 = pH
+            x0 = pW
         elif self == Position.TOP_RIGHT:
-            hh = pH
-            ww = w - wW - pW
+            y0 = pH
+            x0 = w - wW - pW
         elif self == Position.CENTER:
-            hh = (h - wH) // 2
-            ww = (w - wW) // 2
+            y0 = (h - wH) // 2
+            x0 = (w - wW) // 2
         elif self == Position.BOTTOM_LEFT:
-            hh = h - wH - pH
-            ww = pW
+            y0 = h - wH - pH
+            x0 = pW
         elif self == Position.BOTTOM_CENTER:
-            hh = h - wH - pH
-            ww = (w - wW) // 2
+            y0 = h - wH - pH
+            x0 = (w - wW) // 2
         elif self == Position.BOTTOM_RIGHT:
-            hh = h - wH - pH
-            ww = w - wW - pW
-        return ww, hh
+            y0 = h - wH - pH
+            x0 = w - wW - pW
+        x1 = x0 + wW
+        y1 = y0 + wH
+        return Box(x0, y0, x1, y1)
 
     @staticmethod
     def argparse(s):
@@ -102,8 +103,7 @@ class Size:
 
     def __iter__(self):
         """Allow iteration of object."""
-        for item in [self.width, self.height]:
-            yield item
+        return iter(astuple(self))
 
     def __getitem__(self, item):
         """Access class items by key or index."""
@@ -212,8 +212,22 @@ class Size:
 
 
 @dataclass
+class Box:
+    """Coordinates to describe a box."""
+
+    x0: int = 0
+    y0: int = 0
+    x1: int = 0
+    y1: int = 0
+
+    def __iter__(self):
+        """Allow iteration and unpacking."""
+        return iter(astuple(self))
+
+
+@dataclass
 class Stat:
     """Image statistics."""
 
-    stddev: float = 0
-    mean: float = 0
+    stddev: float = 0.0
+    mean: float = 0.0

@@ -9,10 +9,9 @@ import cv2
 import numpy as np
 from PIL import Image, ImageDraw, ImageFont, ImageStat
 
-# from pyimgtool.utils import Log, get_pkg_root, show_image_cv2, show_image_plt
 from pyimgtool import utils
 from pyimgtool.commands.resize import resize_height
-from pyimgtool.data_structures import Position, Size, Stat
+from pyimgtool.data_structures import Box, Position, Size, Stat
 from pyimgtool.exceptions import OverlaySizeError
 
 LOG = logging.getLogger(__name__)
@@ -36,10 +35,9 @@ def get_region_stats(im: Image, region: list) -> ImageStat:
     return ImageStat.Stat(image_l, mask=m)
 
 
-def get_region_stats_np(im: np.ndarray, region: list) -> Stat:
+def get_region_stats_np(im: np.ndarray, region: Box) -> Stat:
     """Get region stats."""
-    x0, y0 = region[0]
-    x1, y1 = region[1]
+    x0, y0, x1, y1 = region
     im = im[y0:y1, x0:x1]
     return Stat(stddev=np.std(im), mean=np.mean(im))
 
@@ -92,53 +90,36 @@ def find_best_location(im: Image, size: Size, padding: float) -> Position:
     return locations[index]
 
 
-def find_best_position(im: Image, size: Size, padding: float) -> Position:
+def find_best_position(
+    im: np.ndarray, size: Size, padding: float
+) -> Tuple[Position, Box, Stat]:
     """Find the best location for the watermark.
 
-    The best location is the one with least luminance variance.
+    The best location is the one with lowest luminance stddev.
 
-    Args:
-        im: PIL Image
-        size: Size of watermark image
-        padding: Proportion of padding to add around watermark
+    Parameters
+    ----------
+    im
+        Image array
+    size
+        Size of watermark image
+    padding
+        Proportion of padding to add around watermark
 
-    Returns: Position object
+    Returns
+    -------
+    Position, Box, Stat
     """
-    im_size = Size(*im.size)
-    # TODO: iterate through these and add end pos; calculate once and return
-    bl_start = Position.BOTTOM_LEFT.calculate_for_overlay(im_size, size, padding)
-    br_start = Position.BOTTOM_RIGHT.calculate_for_overlay(im_size, size, padding)
-    tl_start = Position.TOP_LEFT.calculate_for_overlay(im_size, size, padding)
-    tr_start = Position.TOP_RIGHT.calculate_for_overlay(im_size, size, padding)
-    bc_start = Position.BOTTOM_CENTER.calculate_for_overlay(im_size, size, padding)
-    start_positions = [
-        tuple(int(x) for x in t)
-        for t in [bl_start, br_start, tl_start, tr_start, bc_start]
-    ]
-    LOG.debug("Start positions: %s", start_positions)
-    im = np.asarray(im)
-    im = cv2.cvtColor(im, cv2.COLOR_RGB2GRAY)
-    im = im.astype(np.float64)
+    im_size = Size.from_np(im)
+    positions = []
+    for p in Position:
+        if p is not Position.CENTER:
+            pos = p.calculate_for_overlay(im_size, size, padding)
+            st = get_region_stats_np(im, pos)
+            positions.append((p, pos, st))
+    LOG.debug("Positions: %s", positions)
     # utils.show_image_cv2(im)
-    stats = [
-        get_region_stats_np(im, [pos, (pos[0] + size.width, pos[1] + size.height)],)
-        for pos in start_positions
-    ]
-    LOG.debug("find_best_position() stats: %s", stats)
-    stddev, mean = [], []
-    for s in stats:
-        stddev.append(s.stddev)
-        mean.append(s.mean)
-    index = stddev.index(min(stddev))
-    # TODO: return Position, (start, end), Stat
-    locations = [
-        Position.BOTTOM_LEFT,
-        Position.BOTTOM_RIGHT,
-        Position.TOP_LEFT,
-        Position.TOP_RIGHT,
-        Position.BOTTOM_CENTER,
-    ]
-    return locations[index]
+    return min(positions, key=lambda i: i[2].stddev)
 
 
 def get_copyright_string(exif: Dict[Any, Any]) -> str:
@@ -205,7 +186,7 @@ def with_image(
     # )
     loc = find_best_location(im, watermark_size, 0.05)
     LOG.debug("Best detected watermark loc: %s", loc)
-    x, y = position.calculate_for_overlay(Size(*im.size), watermark_size)
+    x, y, _, _ = position.calculate_for_overlay(Size(*im.size), watermark_size)
     im.paste(watermark_image, (x, y), mask)
     return im
 
@@ -250,7 +231,7 @@ def with_image_opencv(
     h, w = im.shape[:2]
     im = np.dstack([im, np.ones((h, w), dtype=im.dtype)])
     overlay = np.zeros((h, w, 4), dtype=im.dtype)
-    ww, hh = position.calculate_for_overlay(Size(w, h), Size(wW, wH))
+    ww, hh, _, _ = position.calculate_for_overlay(Size(w, h), Size(wW, wH))
     LOG.debug("hh: %d, ww: %d", hh, ww)
     overlay[hh : hh + wH, ww : ww + wH] = watermark_image
     output = im.copy()
@@ -260,7 +241,6 @@ def with_image_opencv(
     return output.astype(orig_im_type)
 
 
-@utils.Log(LOG)
 def overlay_transparent(
     background: np.ndarray,
     overlay: np.ndarray,
@@ -294,29 +274,28 @@ def overlay_transparent(
     bg_h, bg_w = background.shape[:2]
     if scale is not None:
         overlay = cv2.resize(overlay, None, fx=scale, fy=scale)
+    LOG.debug("Overlay shape: %s", overlay.shape)
     h, w, c = overlay.shape
     LOG.debug(
         "Calculated margin for overlay: %s", Size(*[int(i * padding) for i in (w, h)])
     )
+    bg_gray = cv2.cvtColor(background, cv2.COLOR_RGB2GRAY)
+    bg_gray = bg_gray.astype(np.float64)
     if position is None:
-        im_pil = Image.fromarray(background)
-        position = find_best_position(im_pil, Size(w, h), padding)
-        LOG.debug("Best calculated position: %s", position)
-    x, y = position.calculate_for_overlay(
-        Size.from_np(background), Size.from_np(overlay), padding
-    )
-    if x > bg_w or y > bg_h:
+        pos, coords, stat = find_best_position(bg_gray, Size(w, h), padding)
+        LOG.debug("Best calculated position: %s=%s, %s", pos, coords, stat)
+    else:
+        coords = position.calculate_for_overlay(
+            Size.from_np(background), Size.from_np(overlay), padding
+        )
+        stat = get_region_stats_np(bg_gray, coords)
+        LOG.debug("Position from args: %s=%s, %s", position, coords, stat)
+    x0, y0, x1, y1 = coords
+    if (x1 - x0) > bg_w or (y1 - y0) > bg_h:
+        # This shouldn't be possible, but just in case
         message = f"Overlay size of {Size(w, h)} is too large for image size {Size(bg_w, bg_h)}"
         raise OverlaySizeError(message)
-    if x + w > bg_w:
-        w = bg_w - x
-        overlay = overlay[:, :w]
-
-    if y + h > bg_h:
-        h = bg_h - y
-        overlay = overlay[:h]
-
-    if c < 4:
+    if c == 3:
         shape = h, w, 1
         LOG.debug("Adding alpha channel for overlay of shape: %s", shape)
         overlay = np.concatenate(
@@ -325,10 +304,13 @@ def overlay_transparent(
     overlay_image = overlay[..., :3]
     mask = overlay_image / 255.0 * alpha
 
-    # TODO: if mean/256 > 0.5, invert watermark (~watermark)
-    background[y : y + h, x : x + w] = (1.0 - mask) * background[
-        y : y + h, x : x + w
-    ] + mask * (~overlay_image if True else overlay_image)
+    # Combine images, inverting overlay if necessary
+    luminance_factor = stat.mean / 256
+    invert_overlay = luminance_factor > 0.5
+    LOG.debug("Luminance factor: %f; invert: %s", luminance_factor, invert_overlay)
+    background[y0:y1, x0:x1] = (1.0 - mask) * background[y0:y1, x0:x1] + mask * (
+        ~overlay_image if invert_overlay else overlay_image
+    )
     return background
 
 

@@ -28,7 +28,7 @@ runw:
 
 # test logo watermark image
 runwi:
-    {{bin_name}} -vv open {{test_file_in}} resize2 -W 2000 -H 2000 watermark2 {{test_watermark_file}} -s 0.5 -o 0.1 save {{test_file_out2}} -fk
+    {{bin_name}} -vv open {{test_file_in}} resize2 -W 2000 -H 2000 watermark2 {{test_watermark_file}} -s 0.3 -o 0.3 save {{test_file_out2}} -fk
 
 # test full logo watermark
 runwif:
