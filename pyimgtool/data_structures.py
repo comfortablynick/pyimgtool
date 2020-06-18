@@ -224,6 +224,13 @@ class Box:
         """Allow iteration and unpacking."""
         return iter(astuple(self))
 
+    def __getitem__(self, item):
+        """Access class items by key or index."""
+        try:
+            return getattr(self, item)
+        except TypeError:
+            return astuple(self)[item]
+
 
 @dataclass
 class Stat:

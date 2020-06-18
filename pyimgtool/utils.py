@@ -125,7 +125,12 @@ def show_image_plt(im: np.ndarray):
         return
     plt.set_loglevel("info")
     plt.figure()
-    plt.imshow(im.astype(np.uint8))
+    cmap = None
+    if len(im.shape) == 2:
+        cmap = "gray"
+    else:
+        im = cv2.cvtColor(im, cv2.COLOR_BGR2RGB)
+    plt.imshow(im.astype(np.uint8), cmap=cmap, vmin=0, vmax=255)
     plt.show()
 
 

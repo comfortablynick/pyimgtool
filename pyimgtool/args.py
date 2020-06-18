@@ -253,9 +253,9 @@ def parse_args(args: List[str]) -> OrderedNamespace:
     watermark_cmd.add_argument(
         "-m",
         "--margin",
-        help="padding around watermark (in pixels)",
-        type=int,
-        default=10,
+        help="padding around watermark (multiplied by watermark size)",
+        type=float,
+        default=0.05,
     )
     watermark_cmd.add_argument(
         "-r",
@@ -273,7 +273,6 @@ def parse_args(args: List[str]) -> OrderedNamespace:
         "--position",
         help="watermark position",
         metavar="POSITION",
-        default=Position.BOTTOM_RIGHT,
         type=Position.argparse,
         choices=list(Position),
     )
@@ -321,7 +320,6 @@ def parse_args(args: List[str]) -> OrderedNamespace:
         "--position",
         help="watermark position",
         metavar="POSITION",
-        default=None,
         type=Position.argparse,
         choices=list(Position),
     )
@@ -367,7 +365,6 @@ def parse_args(args: List[str]) -> OrderedNamespace:
         "--position",
         help="position of text",
         metavar="POSITION",
-        default=Position.BOTTOM_RIGHT,
         type=Position.argparse,
         choices=list(Position),
     )
@@ -407,7 +404,6 @@ def parse_args(args: List[str]) -> OrderedNamespace:
         "--position",
         help="position of text",
         metavar="POSITION",
-        default=Position.BOTTOM_RIGHT,
         type=Position.argparse,
         choices=list(Position),
     )

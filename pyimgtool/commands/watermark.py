@@ -34,7 +34,7 @@ def get_region_stats(im: PILImage, region: Box) -> ImageStat:
     image_l = im.convert("L")
     m = Image.new("L", image_l.size, 0)
     drawing_layer = ImageDraw.Draw(m)
-    drawing_layer.rectangle(region, fill=255)
+    drawing_layer.rectangle(tuple(region), fill=255)
     return ImageStat.Stat(image_l, mask=m)
 
 
@@ -171,9 +171,9 @@ def with_image(
     im: PILImage,
     watermark_image: PILImage,
     scale: float = 0.2,
-    position: Position = Position.BOTTOM_RIGHT,
+    position: Position = None,
     opacity: float = 0.3,
-    padding: int = 10,
+    padding: float = 0.05,
     invert: bool = False,
 ) -> PILImage:
     """Watermark with image according to Config.
@@ -185,13 +185,13 @@ def with_image(
     watermark_image
         PIL Image
     scale
-        Scale for watermark relative to image
+        Scale for watermark size
     position
         Position of watermark
     opacity
         Watermark layer opacity from 0 to 1
     padding
-        Pixels of padding for watermark
+        Proportion of watermark image to use as padding
     invert
         Invert watermark image
 
@@ -201,28 +201,23 @@ def with_image(
     """
     watermark_image = watermark_image.convert("RGBA")
     LOG.info("Watermark: %s", watermark_image.size)
-    watermark_ratio = watermark_image.height / im.height
-    LOG.info("Watermark size ratio: %.4f", watermark_ratio)
-    if watermark_ratio > scale:
-        LOG.debug(
-            "Resizing watermark from %.4f to %.4f scale", watermark_ratio, scale,
-        )
+    # watermark_ratio = watermark_image.height / im.height
+    # LOG.info("Watermark size ratio: %.4f", watermark_ratio)
+    # if watermark_ratio > scale:
+    if scale is not None:
         watermark_image = resize_height(
-            watermark_image, (int(im.width * scale), int(im.height * scale)),
+            watermark_image, Size(int(im.width * scale), int(im.height * scale)),
         )
         LOG.debug("New watermark dims: %s", watermark_image.size)
-    # offset_x = padding
-    # offset_y = padding
-    watermark_size = Size(watermark_image.width, watermark_image.height)
+    watermark_size = Size(*watermark_image.size)
     mask = watermark_image.split()[3].point(lambda i: i * opacity)
-    # pos = (
-    #     (im.width - watermark_image.width - offset_x),
-    #     (im.height - watermark_image.height - offset_y),
-    # )
-    loc = find_best_location(im, watermark_size, 0.05)
-    LOG.debug("Best detected watermark loc: %s", loc)
-    x, y, _, _ = position.calculate_for_overlay(Size(*im.size), watermark_size)
-    im.paste(watermark_image, (x, y), mask)
+    if position is None:
+        position = find_best_location(im, watermark_size, padding)
+        LOG.debug("Best detected watermark loc: %s", position)
+    else:
+        LOG.debug("Position from args: %s", position)
+    box = position.calculate_for_overlay(Size(*im.size), watermark_size, padding)
+    im.paste(watermark_image, box[:2], mask)
     return im
 
 
@@ -271,8 +266,6 @@ def with_image_opencv(
     overlay[hh : hh + wH, ww : ww + wH] = watermark_image
     output = im.copy()
     cv2.addWeighted(overlay, opacity, output, 1.0, 0, output)
-    # utils.show_image_cv2(output)
-    # utils.show_image_plt(output)
     return output.astype(orig_im_type)
 
 
@@ -317,19 +310,19 @@ def overlay_transparent(
     LOG.debug(
         "Calculated margin for overlay: %s", Size(*[int(i * padding) for i in (w, h)])
     )
+    utils.show_image_plt(background)
     bg_gray = cv2.cvtColor(background, cv2.COLOR_RGB2GRAY)
     bg_gray = bg_gray.astype(np.float64)
     if position is None:
-        pos, coords, stat = find_best_position(bg_gray, Size(w, h), padding)
-        LOG.debug("Best calculated position: %s=%s, %s", pos, coords, stat)
+        pos, bx, stat = find_best_position(bg_gray, Size(w, h), padding)
+        LOG.debug("Best calculated position: %s=%s, %s", pos, bx, stat)
     else:
-        coords = position.calculate_for_overlay(
+        bx = position.calculate_for_overlay(
             Size.from_np(background), Size.from_np(overlay), padding
         )
-        stat = get_region_stats_np(bg_gray, coords)
-        LOG.debug("Position from args: %s=%s, %s", position, coords, stat)
-    x0, y0, x1, y1 = coords
-    if (x1 - x0) > bg_w or (y1 - y0) > bg_h:
+        stat = get_region_stats_np(bg_gray, bx)
+        LOG.debug("Position from args: %s=%s, %s", position, bx, stat)
+    if (bx.x1 - bx.x0) > bg_w or (bx.y1 - bx.y0) > bg_h:
         message = f"Overlay size of {Size(w, h)} is too large for image size {Size(bg_w, bg_h)}"
         LOG.error("%s; this should be unreachable", message)
         raise OverlaySizeError(message)
@@ -351,8 +344,8 @@ def overlay_transparent(
         # Invert whether or not we automatically inverted
         overlay_image = ~overlay_image
     LOG.debug("Luminance factor: %f; invert: %s", luminance_factor, invert_overlay)
-    background[y0:y1, x0:x1] = (1.0 - mask) * background[
-        y0:y1, x0:x1
+    background[bx.y0 : bx.y1, bx.x0 : bx.x1] = (1.0 - mask) * background[
+        bx.y0 : bx.y1, bx.x0 : bx.x1
     ] + mask * overlay_image
     return background
 
