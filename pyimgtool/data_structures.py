@@ -238,3 +238,4 @@ class Stat:
 
     stddev: float = 0.0
     mean: float = 0.0
+    weighted_dev: float = 0.0

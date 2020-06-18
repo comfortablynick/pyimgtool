@@ -3,6 +3,7 @@
 import logging
 from datetime import datetime
 from pathlib import PurePath
+from pprint import pformat
 from typing import Any, Dict, List, Tuple, Union
 
 import cv2
@@ -31,11 +32,11 @@ def get_region_stats(im: PILImage, region: Box) -> ImageStat:
     Returns: ImageStat object with stats
     """
     LOG.debug("Region for stats: %s", region)
-    image_l = im.convert("L")
-    m = Image.new("L", image_l.size, 0)
+    m = Image.new("L", im.size, 0)
     drawing_layer = ImageDraw.Draw(m)
     drawing_layer.rectangle(tuple(region), fill=255)
-    return ImageStat.Stat(image_l, mask=m)
+    st = ImageStat.Stat(im, mask=m)
+    return Stat(stddev=st.stddev[0], mean=st.mean[0])
 
 
 def get_region_stats_np(im: np.ndarray, region: Box) -> Stat:
@@ -56,10 +57,16 @@ def get_region_stats_np(im: np.ndarray, region: Box) -> Stat:
     x0, y0, x1, y1 = region
     dtype = np.float64
     im = im[y0:y1, x0:x1].copy()
-    return Stat(stddev=np.std(im, dtype=dtype), mean=np.mean(im, dtype=dtype))
+    stddev = np.std(im, dtype=dtype)
+    mean = np.mean(im, dtype=dtype)
+    distance = abs(mean - 128) / 128.0
+    weighted_dev = stddev - (stddev * distance)
+    return Stat(stddev=stddev, mean=mean, weighted_dev=weighted_dev)
 
 
-def find_best_location(im: Image, size: Size, padding: float) -> Position:
+def find_best_location(
+    im: Image, size: Size, padding: float
+) -> Tuple[Position, Box, Stat]:
     """Find the best location for the watermark.
 
     The best location is the one with least luminance variance.
@@ -71,46 +78,16 @@ def find_best_location(im: Image, size: Size, padding: float) -> Position:
 
     Returns: Position object
     """
-    bl_padding = (
-        padding * im.size[0],
-        im.size[1] - size.height - padding * im.size[1],
-    )
-    br_padding = (
-        im.size[0] - size.width - padding * im.size[0],
-        im.size[1] - size.height - padding * im.size[1],
-    )
-    tl_padding = (padding * im.size[0], padding * im.size[0])
-    tr_padding = (im.size[0] - size.width - padding * im.size[0], padding * im.size[1])
-    bc_padding = (
-        im.size[0] / 2 - size.width / 2,
-        im.size[1] - size.height - padding * im.size[1],
-    )
-    paddings = [
-        tuple(int(x) for x in t)
-        for t in [bl_padding, br_padding, tl_padding, tr_padding, bc_padding]
-    ]
-    stats = [
-        get_region_stats(
-            im,
-            Box(
-                padding[0],
-                padding[1],
-                padding[0] + size.width,
-                padding[1] + size.height,
-            ),
-        ).stddev[0]
-        for padding in paddings
-    ]
-    LOG.debug("stats: %s", stats)
-    index = stats.index(min(stats))
-    locations = [
-        Position.BOTTOM_LEFT,
-        Position.BOTTOM_RIGHT,
-        Position.TOP_LEFT,
-        Position.TOP_RIGHT,
-        Position.BOTTOM_CENTER,
-    ]
-    return locations[index]
+    im_size = Size(*im.size)
+    positions = []
+    for p in Position:
+        if p is not Position.CENTER:
+            pos = p.calculate_for_overlay(im_size, size, padding)
+            st = get_region_stats(im, pos)
+            positions.append((p, pos, st))
+    LOG.debug("Positions: %s", pformat(positions))
+    # utils.show_image_cv2(im)
+    return min(positions, key=lambda i: i[2].stddev)
 
 
 def find_best_position(
@@ -140,7 +117,7 @@ def find_best_position(
             pos = p.calculate_for_overlay(im_size, size, padding)
             st = get_region_stats_np(im, pos)
             positions.append((p, pos, st))
-    LOG.debug("Positions: %s", positions)
+    LOG.debug("Positions: %s", pformat(positions))
     # utils.show_image_cv2(im)
     return min(positions, key=lambda i: i[2].stddev)
 
@@ -170,7 +147,7 @@ def get_copyright_string(exif: Dict[Any, Any]) -> str:
 def with_image(
     im: PILImage,
     watermark_image: PILImage,
-    scale: float = 0.2,
+    scale: float = None,
     position: Position = None,
     opacity: float = 0.3,
     padding: float = 0.05,
@@ -201,23 +178,24 @@ def with_image(
     """
     watermark_image = watermark_image.convert("RGBA")
     LOG.info("Watermark: %s", watermark_image.size)
-    # watermark_ratio = watermark_image.height / im.height
-    # LOG.info("Watermark size ratio: %.4f", watermark_ratio)
-    # if watermark_ratio > scale:
-    if scale is not None:
+    if scale is not None and scale < 1:
         watermark_image = resize_height(
-            watermark_image, Size(int(im.width * scale), int(im.height * scale)),
+            watermark_image,
+            Size(
+                int(watermark_image.width * scale), int(watermark_image.height * scale)
+            ),
         )
         LOG.debug("New watermark dims: %s", watermark_image.size)
     watermark_size = Size(*watermark_image.size)
     mask = watermark_image.split()[3].point(lambda i: i * opacity)
+    im_gray = im.convert("L")
     if position is None:
-        position = find_best_location(im, watermark_size, padding)
+        position, bx, stat = find_best_location(im_gray, watermark_size, padding)
         LOG.debug("Best detected watermark loc: %s", position)
     else:
         LOG.debug("Position from args: %s", position)
-    box = position.calculate_for_overlay(Size(*im.size), watermark_size, padding)
-    im.paste(watermark_image, box[:2], mask)
+        bx = position.calculate_for_overlay(Size(*im.size), watermark_size, padding)
+    im.paste(watermark_image, bx[:2], mask)
     return im
 
 
@@ -310,8 +288,8 @@ def overlay_transparent(
     LOG.debug(
         "Calculated margin for overlay: %s", Size(*[int(i * padding) for i in (w, h)])
     )
-    utils.show_image_plt(background)
     bg_gray = cv2.cvtColor(background, cv2.COLOR_RGB2GRAY)
+    # utils.show_image_cv2(bg_gray)
     bg_gray = bg_gray.astype(np.float64)
     if position is None:
         pos, bx, stat = find_best_position(bg_gray, Size(w, h), padding)
@@ -335,15 +313,14 @@ def overlay_transparent(
     overlay_image = overlay[..., :3]
     mask = overlay_image / 256.0 * alpha
 
+    invert_overlay = stat.mean > 128.0
     # Combine images, inverting overlay if necessary
-    luminance_factor = stat.mean / 256.0
-    invert_overlay = luminance_factor > 0.5
     if invert_overlay:
+        LOG.debug("Inverting based on luminance: %s", stat.mean)
         overlay_image = ~overlay_image
     if invert:
         # Invert whether or not we automatically inverted
         overlay_image = ~overlay_image
-    LOG.debug("Luminance factor: %f; invert: %s", luminance_factor, invert_overlay)
     background[bx.y0 : bx.y1, bx.x0 : bx.x1] = (1.0 - mask) * background[
         bx.y0 : bx.y1, bx.x0 : bx.x1
     ] + mask * overlay_image
