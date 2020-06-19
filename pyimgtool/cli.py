@@ -12,7 +12,6 @@ from typing import Dict, Optional
 import cv2
 import numpy as np
 import piexif
-import plotille
 from PIL import Image
 from sty import ef, fg, rs
 
@@ -25,7 +24,7 @@ from pyimgtool.exceptions import (
     ResizeAttributeError,
     ResizeNotNeededError,
 )
-from pyimgtool.utils import humanize_bytes
+from pyimgtool.utils import generate_rgb_histogram, humanize_bytes
 
 logging.basicConfig(level=logging.WARNING)
 LOG = logging.getLogger(__name__)
@@ -88,12 +87,16 @@ def main():
             LOG.info("Input file size: %s", humanize_bytes(in_file_size))
             LOG.info("Input dpi: %s", in_dpi)
             if arg.show_histogram:
-                print(generate_rgb_histogram(im))
+                LOG.debug("Generating numpy thumbnail for histogram")
+                im = np.asarray(im) if type(im) != np.ndarray else im
+                thumb = resize.resize_thumbnail_opencv(im, Size(256, 256))
+                print(generate_rgb_histogram(thumb))
         elif cmd == "mat":
             im = np.asarray(im) if type(im) != np.ndarray else im
             im = mat.create_mat(im, size_inches=arg.size)
             out_image_size = Size.from_np(im)
         elif cmd == "resize":
+            im = Image.fromarray(im) if type(im) == np.ndarray else im
             orig_size = Size(*im.size)
             out_image_size = orig_size
             try:
@@ -138,12 +141,13 @@ def main():
             else:
                 try:
                     im = resize.resize_opencv(
-                        resize_method, im, new_size, resample=cv2.INTER_LANCZOS4
+                        resize_method, im, new_size, resample=cv2.INTER_AREA
                     )
                 except ImageTooSmallError as e:
                     LOG.warning(e)
                 out_image_size = Size.from_np(im)
         elif cmd == "text":
+            im = Image.fromarray(im) if type(im) == np.ndarray else im
             im = watermark.with_text(
                 im,
                 text=arg.text,
@@ -165,6 +169,7 @@ def main():
             )
             im = np.asarray(im)
         elif cmd == "watermark":
+            im = Image.fromarray(im) if type(im) == np.ndarray else im
             im = watermark.with_image(
                 im,
                 Image.open(arg.image),
@@ -377,53 +382,3 @@ def generate_report(
         )
     out.append(f"{ef.b}{report_end:{'-'}^{col0w + col1w + col2w + col3w + 1}}{rs.all}")
     return "\n".join(out)
-
-
-def generate_rgb_histogram(im: Image, show_axes: bool = False) -> str:
-    """Generate histogram for terminal.
-
-    Parameters
-    ----------
-    im
-        Image to evaluate
-    show_axes
-        Show x and y axis labels
-
-    Returns
-    -------
-    str:
-        Histogram to print
-    """
-    hist_width = 50
-    hist_height = 10
-    hist_bins = 256
-
-    # set up graph
-    fig = plotille.Figure()
-    fig.width = hist_width
-    fig.height = hist_height
-    fig.origin = False  # Don't draw 0 lines
-    fig.set_x_limits(min_=0, max_=hist_bins - 1)
-    fig.set_y_limits(min_=0)
-    fig.color_mode = "names"
-
-    img = np.asarray(im)
-    img_h, img_w, img_c = img.shape
-    colors = ["red", "green", "blue"]
-
-    for i in range(img_c):
-        hist_data, bins = np.histogram(
-            img[..., i], bins=range(hist_bins + 1), range=[0, 256]
-        )
-        fig.plot(bins[:hist_bins], hist_data, lc=colors[i])
-    if not show_axes:
-        graph = (
-            "\n".join(
-                ["".join(ln.split("|")[1]) for ln in fig.show().splitlines()[1:-2]]
-            )
-            + "\n"
-        )
-
-    else:
-        graph = fig.show()
-    return graph

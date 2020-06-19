@@ -9,6 +9,7 @@ from pathlib import PurePath
 import cv2
 import matplotlib.pyplot as plt
 import numpy as np
+import plotille
 
 LOG = logging.getLogger(__name__)
 
@@ -97,17 +98,17 @@ def rgba2rgb(rgba: np.ndarray, background=(255, 255, 255)) -> np.ndarray:
 
     Returns: RGB image in numpy array
     """
-    row, col, ch = rgba.shape
+    col, row, ch = rgba.shape
 
     if ch == 3:
         return rgba
 
     assert ch == 4, "RGBA image has 4 channels."
 
-    rgb = np.zeros((row, col, 3), dtype="float32")
+    rgb = np.zeros((col, row, 3), dtype=np.float64)
     r, g, b, a = rgba[:, :, 0], rgba[:, :, 1], rgba[:, :, 2], rgba[:, :, 3]
 
-    a = np.asarray(a, dtype="float32") / 255.0
+    a = np.asarray(a, dtype=np.float64) / 255.0
 
     R, G, B = background
 
@@ -115,7 +116,7 @@ def rgba2rgb(rgba: np.ndarray, background=(255, 255, 255)) -> np.ndarray:
     rgb[:, :, 1] = g * a + (1.0 - a) * G
     rgb[:, :, 2] = b * a + (1.0 - a) * B
 
-    return np.asarray(rgb, dtype="uint8")
+    return np.asarray(rgb, dtype=np.uint8)
 
 
 def show_image_plt(im: np.ndarray):
@@ -148,10 +149,31 @@ def show_image_cv2(im: np.ndarray):
     cv2.waitKey(0)
 
 
+def show_histogram(im: np.ndarray):
+    """Show gui histogram plot.
+
+    Parameters
+    ----------
+    im : np.ndarray
+        Image
+    """
+    if len(im.shape) > 2:
+        LOG.debug("Converting image to grayscale for histogram plot")
+        im = cv2.cvtColor(im, cv2.COLOR_BGR2GRAY)
+    assert len(im.shape) == 2, "Only grayscale images can be used with this func"
+    hist, bins = np.histogram(im, bins=256, range=(0, 255))
+    center = (bins[:-1] + bins[1:]) / 2
+    plt.bar(center, hist, align="center")
+    plt.title("Histogram (Luminosity)")
+    plt.xlabel("Pixel Value")
+    plt.ylabel("Frequency")
+    plt.show()
+
+
 def np_repr(array: np.ndarray) -> str:
     """Custom repr for numpy.ndarray.
 
-    The string is formatted to show "ndarray(h, w, c, dtype=dtype)"
+    The string is formatted to show "ndarray((h, w[, c]), dtype=dtype)"
 
     Parameters
     ----------
@@ -163,3 +185,51 @@ def np_repr(array: np.ndarray) -> str:
     Formatted string
     """
     return f"ndarray({array.shape} dtype={array.dtype})"
+
+
+def generate_rgb_histogram(im: np.ndarray, show_axes: bool = False) -> str:
+    """Generate histogram for terminal.
+
+    Parameters
+    ----------
+    im
+        Image to evaluate
+    show_axes
+        Show x and y axis labels
+
+    Returns
+    -------
+    str:
+        Histogram to print
+    """
+    img = np.asarray(im)
+    hist_width = 50
+    hist_height = 10
+    hist_bins = 256
+
+    # set up graph
+    fig = plotille.Figure()
+    fig.width = hist_width
+    fig.height = hist_height
+    fig.origin = False  # Don't draw 0 lines
+    fig.set_x_limits(min_=0, max_=hist_bins - 1)
+    fig.set_y_limits(min_=0)
+    fig.color_mode = "names"
+
+    img_h, img_w, img_c = img.shape
+    colors = ["red", "green", "blue"]
+
+    for i in range(img_c):
+        hist_data, bins = np.histogram(img[..., i], bins=hist_bins, range=(0, 255))
+        fig.plot(bins[:hist_bins], hist_data, lc=colors[i])
+    if not show_axes:
+        graph = (
+            "\n".join(
+                ["".join(ln.split("|")[1]) for ln in fig.show().splitlines()[1:-2]]
+            )
+            + "\n"
+        )
+
+    else:
+        graph = fig.show()
+    return graph

@@ -56,6 +56,7 @@ def get_region_stats_np(im: np.ndarray, region: Box) -> Stat:
     x0, y0, x1, y1 = region
     dtype = np.float64
     im = im[y0:y1, x0:x1].copy()
+    # utils.show_histogram(im)
     stddev = np.std(im, dtype=dtype)
     mean = np.mean(im, dtype=dtype)
     return Stat(stddev=stddev, mean=mean)
