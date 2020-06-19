@@ -148,7 +148,6 @@ def main():
                     LOG.warning(e)
                 out_image_size = Size.from_np(im)
         elif cmd == "text":
-            im = Image.fromarray(im) if type(im) == np.ndarray else im
             im = watermark.with_text(
                 im,
                 text=arg.text,
@@ -170,7 +169,6 @@ def main():
             )
             im = np.asarray(im)
         elif cmd == "watermark":
-            im = Image.fromarray(im) if type(im) == np.ndarray else im
             im = watermark.with_image(
                 im,
                 Image.open(arg.image),
