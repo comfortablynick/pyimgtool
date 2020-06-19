@@ -3,8 +3,7 @@
 import logging
 from datetime import datetime
 from pathlib import PurePath
-from pprint import pformat
-from typing import Any, Dict, List, Tuple, Union
+from typing import Any, Dict, Tuple
 
 import cv2
 import numpy as np
@@ -59,9 +58,7 @@ def get_region_stats_np(im: np.ndarray, region: Box) -> Stat:
     im = im[y0:y1, x0:x1].copy()
     stddev = np.std(im, dtype=dtype)
     mean = np.mean(im, dtype=dtype)
-    distance = abs(mean - 128) / 128.0
-    weighted_dev = stddev - (stddev * distance)
-    return Stat(stddev=stddev, mean=mean, weighted_dev=weighted_dev)
+    return Stat(stddev=stddev, mean=mean)
 
 
 def find_best_location(
@@ -85,7 +82,7 @@ def find_best_location(
             pos = p.calculate_for_overlay(im_size, size, padding)
             st = get_region_stats(im, pos)
             positions.append((p, pos, st))
-    LOG.debug("Positions: %s", pformat(positions))
+    LOG.debug("Positions: %s", positions)
     # utils.show_image_cv2(im)
     return min(positions, key=lambda i: i[2].stddev)
 
@@ -117,7 +114,7 @@ def find_best_position(
             pos = p.calculate_for_overlay(im_size, size, padding)
             st = get_region_stats_np(im, pos)
             positions.append((p, pos, st))
-    LOG.debug("Positions: %s", pformat(positions))
+    LOG.debug("Positions: %s", positions)
     # utils.show_image_cv2(im)
     return min(positions, key=lambda i: i[2].stddev)
 
@@ -178,7 +175,7 @@ def with_image(
     """
     watermark_image = watermark_image.convert("RGBA")
     LOG.info("Watermark: %s", watermark_image.size)
-    if scale is not None and scale < 1:
+    if scale is not None and scale != 1:
         watermark_image = resize_height(
             watermark_image,
             Size(
@@ -281,8 +278,12 @@ def overlay_transparent(
         If overlay image is larger than background image
     """
     bg_h, bg_w = background.shape[:2]
-    if scale is not None:
-        overlay = cv2.resize(overlay, None, fx=scale, fy=scale)
+    if scale is not None and scale != 1.0:
+        if scale < 1.0:
+            resample = cv2.INTER_AREA
+        else:
+            resample = cv2.INTER_CUBIC
+        overlay = cv2.resize(overlay, None, fx=scale, fy=scale, interpolation=resample)
     LOG.debug("Overlay shape: %s", overlay.shape)
     h, w, c = overlay.shape
     LOG.debug(

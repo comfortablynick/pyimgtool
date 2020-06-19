@@ -238,4 +238,14 @@ class Stat:
 
     stddev: float = 0.0
     mean: float = 0.0
-    weighted_dev: float = 0.0
+
+    def __str__(self):
+        return f"Stat(stddev={self.stddev}, mean={self.mean}, weighted_dev={self.weighted_dev})"
+
+    __repr__ = __str__
+
+    @property
+    def weighted_dev(self) -> float:
+        """Luminance deviation multiplied by how close the average is to 0 or 255."""
+        distance = abs(self.mean - 128) / 128.0
+        return self.stddev - (self.stddev * distance)
