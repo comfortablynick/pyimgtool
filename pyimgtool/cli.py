@@ -24,7 +24,7 @@ from pyimgtool.exceptions import (
     ResizeAttributeError,
     ResizeNotNeededError,
 )
-from pyimgtool.utils import generate_rgb_histogram, humanize_bytes
+from pyimgtool.utils import generate_rgb_histogram, humanize_bytes, show_rgb_histogram
 
 logging.basicConfig(level=logging.WARNING)
 LOG = logging.getLogger(__name__)
@@ -39,7 +39,7 @@ def main():
     log_level = 0
     try:
         log_level = (0, 20, 10)[opts.verbosity]
-        mpl_log_level = log_level + 10
+        mpl_log_level = log_level + 10 if log_level > 0 else log_level
     except IndexError:
         log_level = 10
         mpl_log_level = log_level
@@ -88,9 +88,10 @@ def main():
             LOG.info("Input dpi: %s", in_dpi)
             if arg.show_histogram:
                 LOG.debug("Generating numpy thumbnail for histogram")
-                im = np.asarray(im) if type(im) != np.ndarray else im
-                thumb = resize.resize_thumbnail_opencv(im, Size(256, 256))
+                im = cv2.cvtColor(np.asarray(im), cv2.COLOR_RGB2BGR)
+                thumb = resize.resize_thumbnail_opencv(im, Size(1000, 1000))
                 print(generate_rgb_histogram(thumb))
+                show_rgb_histogram(im)
         elif cmd == "mat":
             im = np.asarray(im) if type(im) != np.ndarray else im
             im = mat.create_mat(im, size_inches=arg.size)
@@ -205,6 +206,8 @@ def main():
         elif cmd == "sharpen":
             im = sharpen.unsharp_mask(im, amount=arg.amount, threshold=arg.threshold)
         elif cmd == "save":
+            # if type(im) == np.ndarray:
+            #     im = Image.fromarray(cv2.cvtColor(im, cv2.COLOR_BGR2RGB))
             use_progressive_jpg = in_file_size > 10000
             if use_progressive_jpg:
                 LOG.debug("Large file; using pSizee jpg")

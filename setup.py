@@ -50,6 +50,7 @@ setup(
         "opencv-python",
         "numpy",
         "plotille",
+        "matplotlib",
     ],
     entry_points={"console_scripts": ["pyimgtool = pyimgtool.cli:main"]},
     python_requires=">=3.7",

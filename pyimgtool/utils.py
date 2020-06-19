@@ -119,6 +119,20 @@ def rgba2rgb(rgba: np.ndarray, background=(255, 255, 255)) -> np.ndarray:
     return np.asarray(rgb, dtype=np.uint8)
 
 
+def bgr2gray(im: np.ndarray, weights=[0.1140, 0.5870, 0.2989]) -> np.ndarray:
+    """Transform BGR image into grayscale."""
+    tile = np.tile(weights, reps=(im.shape[0], im.shape[1], 1))
+    return np.sum(tile * im, axis=2)
+
+
+def equalize_hsv(image):
+    """Equalize histogram of image."""
+    H, S, V = cv2.split(cv2.cvtColor(image, cv2.COLOR_BGR2HSV))
+    eq_V = cv2.equalizeHist(V)
+    eq_image = cv2.cvtColor(cv2.merge([H, S, eq_V]), cv2.COLOR_HSV2BGR)
+    return eq_image
+
+
 def show_image_plt(im: np.ndarray):
     """Show image in matplotlib window."""
     if platform.system() != "Windows":
@@ -157,6 +171,8 @@ def show_histogram(im: np.ndarray):
     im : np.ndarray
         Image
     """
+    if platform.system() != "Windows":
+        return
     if len(im.shape) > 2:
         LOG.debug("Converting image to grayscale for histogram plot")
         im = cv2.cvtColor(im, cv2.COLOR_BGR2GRAY)
@@ -166,7 +182,59 @@ def show_histogram(im: np.ndarray):
     plt.bar(center, hist, align="center")
     plt.title("Histogram (Luminosity)")
     plt.xlabel("Pixel Value")
-    plt.ylabel("Frequency")
+    plt.ylabel("# of Pixels")
+    plt.show()
+
+
+def show_position_histograms(im: np.ndarray, positions):
+    """Show gui histogram plot for multiple positions in image.
+
+    Parameters
+    ----------
+    im : np.ndarray
+        Image
+    """
+    if platform.system() != "Windows":
+        return
+    if len(im.shape) > 2:
+        LOG.debug("Converting image to grayscale for histogram plot")
+        im = cv2.cvtColor(im, cv2.COLOR_BGR2GRAY)
+    assert len(im.shape) == 2, "Only grayscale images can be used with this func"
+    fig, axs = plt.subplots(3, 2)
+    plt.title("Histogram (Luminosity)")
+    for ax in axs.flat:
+        ax.set(xlabel="Pixel Value", ylabel="# of Pixels")
+
+    for pos in positions:
+        hist, bins = np.histogram(im, bins=256, range=(0, 255))
+        center = (bins[:-1] + bins[1:]) / 2
+        # print(bins)
+        plt.bar(center, hist, align="center")
+    plt.show()
+
+
+def show_rgb_histogram(im: np.ndarray):
+    """Display rgb histogram plot.
+
+    Parameters
+    ----------
+    im : np.ndarray
+        Image to plot
+    """
+    if platform.system() != "Windows":
+        return
+    chans = cv2.split(im)
+    colors = ("r", "g", "b")
+    plt.figure()
+    plt.title("Histogram")
+    plt.xlabel("Pixel Value")
+    plt.ylabel("# of Pixels")
+    plt.xlim([0, 256])
+    for (chan, color) in zip(chans, colors):
+        hist = cv2.calcHist([chan], [0], None, [256], [0, 256])
+        # hist, bins = np.histogram(chan, bins=256, range=(0, 256))
+        # plot the histogram
+        plt.plot(hist, color=color)
     plt.show()
 
 
@@ -218,10 +286,12 @@ def generate_rgb_histogram(im: np.ndarray, show_axes: bool = False) -> str:
 
     img_h, img_w, img_c = img.shape
     colors = ["red", "green", "blue"]
+    chans = cv2.split(img)
 
-    for i in range(img_c):
-        hist_data, bins = np.histogram(img[..., i], bins=hist_bins, range=(0, 255))
-        fig.plot(bins[:hist_bins], hist_data, lc=colors[i])
+    # for i in range(img_c):
+    for (chan, color) in zip(chans, colors):
+        hist_data, bins = np.histogram(chan, bins=hist_bins, range=(0, 255))
+        fig.plot(bins[:hist_bins], hist_data, lc=color)
     if not show_axes:
         graph = (
             "\n".join(

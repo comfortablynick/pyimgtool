@@ -116,7 +116,6 @@ def find_best_position(
             st = get_region_stats_np(im, pos)
             positions.append((p, pos, st))
     LOG.debug("Positions: %s", positions)
-    # utils.show_image_cv2(im)
     return min(positions, key=lambda i: i[2].stddev)
 
 
@@ -285,13 +284,13 @@ def overlay_transparent(
         else:
             resample = cv2.INTER_CUBIC
         overlay = cv2.resize(overlay, None, fx=scale, fy=scale, interpolation=resample)
+    # overlay = cv2.GaussianBlur(overlay, (5, 5), 0)
     LOG.debug("Overlay shape: %s", overlay.shape)
     h, w, c = overlay.shape
     LOG.debug(
         "Calculated margin for overlay: %s", Size(*[int(i * padding) for i in (w, h)])
     )
-    bg_gray = cv2.cvtColor(background, cv2.COLOR_RGB2GRAY)
-    # utils.show_image_cv2(bg_gray)
+    bg_gray = cv2.cvtColor(background, cv2.COLOR_BGR2GRAY)
     bg_gray = bg_gray.astype(np.float64)
     if position is None:
         pos, bx, stat = find_best_position(bg_gray, Size(w, h), padding)
