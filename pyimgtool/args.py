@@ -118,6 +118,34 @@ def split_to_tuple(arg: str) -> Tuple[float, ...]:
     return tuple([float(i) for i in arg.split(",")])
 
 
+def position(s):
+    """Parse string values from CLI into Position.
+
+    Parameters
+    ----------
+    s
+        Value to match against enum attribute
+
+    Returns
+    -------
+    Validated Position
+
+    Raises
+    ------
+    argparse.ArgumentTypeError
+        If validation is failed
+    """
+    names = {str(x): x for x in list(Position)}
+    vals = {x.value: x for x in list(Position)}
+    try:
+        return {**names, **vals}[s.lower()]
+    except KeyError:
+        strs = ", ".join(Position.choices())
+        raise argparse.ArgumentTypeError(
+            f"{s} is an invalid position. Valid choices are: {strs}"
+        )
+
+
 def parse_args(args: List[str]) -> OrderedNamespace:
     """Parse command line arguments.
 
@@ -273,8 +301,7 @@ def parse_args(args: List[str]) -> OrderedNamespace:
         "--position",
         help="watermark position",
         metavar="POSITION",
-        type=Position.argparse,
-        choices=list(Position),
+        type=position,
     )
     watermark_cmd.add_argument(
         "-s",
@@ -286,7 +313,9 @@ def parse_args(args: List[str]) -> OrderedNamespace:
 
     # Watermark2
     watermark2_cmd = commands.add_parser(
-        "watermark2", help="add watermark to image using numpy and opencv"
+        "watermark2",
+        help="add watermark to image using numpy and opencv",
+        epilog=f"Valid positions are: {', '.join(Position.choices())}",
     )
     watermark2_cmd.add_argument(
         "image",
@@ -320,8 +349,7 @@ def parse_args(args: List[str]) -> OrderedNamespace:
         "--position",
         help="watermark position",
         metavar="POSITION",
-        type=Position.argparse,
-        choices=list(Position),
+        type=position,
     )
     watermark2_cmd.add_argument(
         "-s",
@@ -361,12 +389,7 @@ def parse_args(args: List[str]) -> OrderedNamespace:
         default=0.3,
     )
     text_cmd.add_argument(
-        "-p",
-        "--position",
-        help="position of text",
-        metavar="POSITION",
-        type=Position.argparse,
-        choices=list(Position),
+        "-p", "--position", help="position of text", metavar="POSITION", type=position,
     )
     text_cmd.add_argument(
         "-s",
@@ -400,12 +423,7 @@ def parse_args(args: List[str]) -> OrderedNamespace:
         "-o", "--opacity", help="opacity of text layer", type=float, default=0.3,
     )
     text2_cmd.add_argument(
-        "-p",
-        "--position",
-        help="position of text",
-        metavar="POSITION",
-        type=Position.argparse,
-        choices=list(Position),
+        "-p", "--position", help="position of text", metavar="POSITION", type=position,
     )
     text2_cmd.add_argument(
         "-s",

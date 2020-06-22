@@ -3,6 +3,7 @@ conf.ini
 .ropeproject/
 *_edited*.jpg
 *.tif
+plt.png
 .vscode/
 __pycache__/
 .mypy_cache/

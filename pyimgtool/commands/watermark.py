@@ -59,7 +59,7 @@ def get_region_stats_np(im: np.ndarray, region: Box) -> Stat:
     # utils.show_histogram(im)
     stddev = np.std(im, dtype=dtype)
     mean = np.mean(im, dtype=dtype)
-    return Stat(stddev=stddev, mean=mean)
+    return Stat(stddev=stddev, mean=mean, data=im.astype(np.uint8))
 
 
 def find_best_location(
@@ -85,7 +85,7 @@ def find_best_location(
             positions.append((p, pos, st))
     LOG.debug("Positions: %s", positions)
     # utils.show_image_cv2(im)
-    return min(positions, key=lambda i: i[2].stddev)
+    return min(positions, key=lambda i: i[2].weighted_dev)
 
 
 def find_best_position(
@@ -116,7 +116,8 @@ def find_best_position(
             st = get_region_stats_np(im, pos)
             positions.append((p, pos, st))
     LOG.debug("Positions: %s", positions)
-    return min(positions, key=lambda i: i[2].stddev)
+    utils.show_position_histograms(positions)
+    return min(positions, key=lambda i: i[2].weighted_dev)
 
 
 def get_copyright_string(exif: Dict[Any, Any]) -> str:
@@ -284,7 +285,6 @@ def overlay_transparent(
         else:
             resample = cv2.INTER_CUBIC
         overlay = cv2.resize(overlay, None, fx=scale, fy=scale, interpolation=resample)
-    # overlay = cv2.GaussianBlur(overlay, (5, 5), 0)
     LOG.debug("Overlay shape: %s", overlay.shape)
     h, w, c = overlay.shape
     LOG.debug(

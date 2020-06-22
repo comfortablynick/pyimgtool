@@ -5,11 +5,14 @@ import re
 import time
 from functools import wraps
 from pathlib import PurePath
+from typing import Sequence, Tuple
 
 import cv2
 import matplotlib.pyplot as plt
 import numpy as np
 import plotille
+
+from pyimgtool.data_structures import Box, Position, Stat
 
 LOG = logging.getLogger(__name__)
 
@@ -186,33 +189,6 @@ def show_histogram(im: np.ndarray):
     plt.show()
 
 
-def show_position_histograms(im: np.ndarray, positions):
-    """Show gui histogram plot for multiple positions in image.
-
-    Parameters
-    ----------
-    im : np.ndarray
-        Image
-    """
-    if platform.system() != "Windows":
-        return
-    if len(im.shape) > 2:
-        LOG.debug("Converting image to grayscale for histogram plot")
-        im = cv2.cvtColor(im, cv2.COLOR_BGR2GRAY)
-    assert len(im.shape) == 2, "Only grayscale images can be used with this func"
-    fig, axs = plt.subplots(3, 2)
-    plt.title("Histogram (Luminosity)")
-    for ax in axs.flat:
-        ax.set(xlabel="Pixel Value", ylabel="# of Pixels")
-
-    for pos in positions:
-        hist, bins = np.histogram(im, bins=256, range=(0, 255))
-        center = (bins[:-1] + bins[1:]) / 2
-        # print(bins)
-        plt.bar(center, hist, align="center")
-    plt.show()
-
-
 def show_rgb_histogram(im: np.ndarray):
     """Display rgb histogram plot.
 
@@ -230,12 +206,49 @@ def show_rgb_histogram(im: np.ndarray):
     plt.xlabel("Pixel Value")
     plt.ylabel("# of Pixels")
     plt.xlim([0, 256])
-    for (chan, color) in zip(chans, colors):
+    for chan, color in zip(chans, colors):
         hist = cv2.calcHist([chan], [0], None, [256], [0, 256])
-        # hist, bins = np.histogram(chan, bins=256, range=(0, 256))
         # plot the histogram
         plt.plot(hist, color=color)
     plt.show()
+
+
+def show_position_histograms(positions: Sequence[Tuple[Position, Box, Stat]]):
+    """Show gui histogram plot for multiple positions in image.
+
+    Parameters
+    ----------
+    positions
+        Iterable containing position, box, stat
+    """
+    if platform.system() != "Windows":
+        return
+    fig, axs = plt.subplots(3, 2, sharex=True, sharey=True)
+    for ax, (pos, _, stat) in zip(axs.flat, positions):
+        hist = cv2.calcHist([stat.data], [0], None, [256], [0, 256])
+        ax.set_title(pos.title_case)
+        msgs = [
+            f"stddev={stat.stddev:.2f}",
+            f"mean={stat.mean:.2f}",
+            f"weighted={stat.weighted_dev:.2f}",
+        ]
+        ax.text(
+            0.02,
+            0.95,
+            "\n".join(msgs),
+            fontsize=6,
+            transform=ax.transAxes,
+            horizontalalignment="left",
+            verticalalignment="top",
+            multialignment="left",
+            bbox=dict(facecolor="red", alpha=0.3),
+        )
+        ax.plot(hist)
+    fig.delaxes(ax=axs[2, 1])
+    plt.tight_layout(True)
+    # plt.show()
+    fig.savefig("test/plt.png", format="png")
+    plt.close(fig)
 
 
 def np_repr(array: np.ndarray) -> str:

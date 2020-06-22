@@ -3,9 +3,9 @@
 from __future__ import annotations
 
 import logging
-from dataclasses import astuple, dataclass
+from dataclasses import astuple, dataclass, field
 from enum import Enum
-from typing import Tuple
+from typing import List, Tuple
 
 import numpy as np
 
@@ -15,20 +15,34 @@ LOG = logging.getLogger(__name__)
 class Position(Enum):
     """Predefined locations of text watermark."""
 
-    TOP_LEFT = "top-left"
-    TOP_RIGHT = "top-right"
-    BOTTOM_RIGHT = "bottom-right"
-    BOTTOM_LEFT = "bottom-left"
-    BOTTOM_CENTER = "bottom-center"
-    CENTER = "center"
+    TOP_LEFT = "tl"
+    TOP_RIGHT = "tr"
+    BOTTOM_RIGHT = "br"
+    BOTTOM_LEFT = "bl"
+    BOTTOM_CENTER = "bc"
+    CENTER = "c"
 
     def __str__(self):
         """Return enum value in lowercase."""
-        return self.value.lower()
+        return self.name.lower()
 
     def __repr__(self):
         """Return string representation of enum."""
-        return str(self)
+        return f"<{self.__class__.__name__}.{self.name}>"
+
+    @property
+    def title_case(self) -> str:
+        """Return string representation in title case."""
+        return " ".join([s.capitalize() for s in str(self).split("_")])
+
+    @classmethod
+    def choices(cls) -> List[str]:
+        """Return string of name and value for possible choices."""
+        strings = []
+        for p in list(cls):  # type: Position
+            strings.append(str(p))
+            strings.append(p.value)
+        return strings
 
     def calculate_for_overlay(
         self, im_size: Size, overlay_size: Size, padding: float = 0.0
@@ -74,19 +88,6 @@ class Position(Enum):
         x1 = x0 + wW
         y1 = y0 + wH
         return Box(x0, y0, x1, y1)
-
-    @staticmethod
-    def argparse(s):
-        """Parse string values from CLI into Position.
-
-        Args:
-            s: Value to match against enum attribute
-        """
-        vals = {x.value.lower(): x for x in list(Position)}
-        try:
-            return vals[s.lower()]
-        except KeyError:
-            return s
 
 
 @dataclass
@@ -238,6 +239,7 @@ class Stat:
 
     stddev: float = 0.0
     mean: float = 0.0
+    data: np.ndarray = field(default=None, repr=False)
 
     def __str__(self):
         return f"Stat(stddev={self.stddev}, mean={self.mean}, weighted_dev={self.weighted_dev})"
