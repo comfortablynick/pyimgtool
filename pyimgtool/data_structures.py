@@ -250,4 +250,4 @@ class Stat:
     def weighted_dev(self) -> float:
         """Luminance deviation multiplied by how close the average is to 0 or 255."""
         distance = abs(self.mean - 128) / 128.0
-        return self.stddev - (self.stddev * distance)
+        return self.stddev - (self.stddev * distance) * 0.5

@@ -248,7 +248,7 @@ def show_position_histograms(positions: Sequence[Tuple[Position, Box, Stat]]):
     plt.tight_layout(True)
     # plt.show()
     fig.savefig("test/plt.png", format="png")
-    plt.close(fig)
+    # plt.close()
 
 
 def np_repr(array: np.ndarray) -> str:
