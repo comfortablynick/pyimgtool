@@ -269,8 +269,7 @@ def main():
                         piexif.insert(out_exif, out_file_path)
                     out_file_size = os.path.getsize(out_file_path)
 
-    time_end = perf_counter()
-    elapsed = time_end - time_start
+    elapsed = perf_counter() - time_start
     report = generate_report(
         in_file_size,
         out_file_size,

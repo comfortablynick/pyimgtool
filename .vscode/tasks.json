@@ -1,0 +1,10 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "watermark2",
+            "type": "shell",
+            "command": "pyimgtool -vv open .\\test\\sunset.jpg resize2 -W 2000 watermark2 .\\test\\logo.png -o .1 -s 1 save .\\test\\sunset_edited2.jpg -kf"
+        }
+    ]
+}
