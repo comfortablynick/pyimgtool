@@ -116,7 +116,9 @@ def find_best_position(
             st = get_region_stats_np(im, pos)
             positions.append((p, pos, st))
     LOG.debug("Positions: %s", positions)
-    utils.show_position_histograms(positions)
+    if LOG.level == logging.DEBUG:
+        # show histograms for debugging
+        utils.show_position_histograms(positions)
     return min(positions, key=lambda i: i[2].weighted_dev)
 
 

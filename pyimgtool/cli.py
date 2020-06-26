@@ -320,7 +320,9 @@ def generate_report(
     str:
         Report text
     """
-    size_reduction_bytes = in_file_size - out_file_size
+    size_delta_bytes = out_file_size - in_file_size
+    in_relative = os.path.relpath(in_file_path)
+    out_relative = os.path.relpath(out_file_path)
     no_op_msg = "**Image not saved due to -n flag; reporting only**"
     report_title = " Processing Summary "
     report_end = " End "
@@ -329,30 +331,23 @@ def generate_report(
     report.append(
         [
             "File Name:",
-            in_file_path,
+            in_relative,
             report_arrow if out_file_path is not None else "",
-            out_file_path if out_file_path is not None else "",
+            out_relative if out_file_path is not None else "",
         ]
     )
     report.append(
-        ["File Dimensions:", str(in_image_size), report_arrow, str(out_image_size)]
+        ["Image Size:", str(in_image_size), report_arrow, str(out_image_size)]
     )
     report.append(
         [
             "File Size:",
             humanize_bytes(in_file_size),
             report_arrow,
-            humanize_bytes(out_file_size),
+            f"{humanize_bytes(out_file_size)} (▲ {(size_delta_bytes/in_file_size) * 100:2.1f}%)",
         ]
     )
-    report.append(
-        [
-            "Size Reduction:",
-            f"{humanize_bytes(size_reduction_bytes)} "
-            f"({(size_reduction_bytes/in_file_size) * 100:2.1f}%)",
-        ]
-    )
-    report.append(["Processing Time:", f"{elapsed_time*1000:.1f} ms"])
+    report.append(["Elapsed:", f"{elapsed_time*1000:.1f} ms"])
     for c in report:
         for n in range(4):
             try:
