@@ -3,13 +3,40 @@
 from __future__ import annotations
 
 import logging
+import os
 from dataclasses import astuple, dataclass, field
 from enum import Enum
-from typing import List, Tuple
+from pathlib import Path
+from typing import Dict, List, Optional, Tuple
 
 import numpy as np
 
 LOG = logging.getLogger(__name__)
+
+
+@dataclass
+class Img:
+    """Image with metadata."""
+
+    data: np.ndarray
+    file_path: Optional[Path] = None
+    dpi: Tuple[int, int] = 0, 0
+    exif: Optional[Dict] = field(default=None, repr=False)
+
+    @property
+    def size(self) -> Size:
+        """Dimensions of image."""
+        return Size.from_np(self.data)
+
+    @property
+    def shape(self) -> Tuple[int, ...]:
+        """Numpy array shape."""
+        return self.data.shape
+
+    @property
+    def file_size(self) -> int:
+        """Byte size of file on disk."""
+        return os.path.getsize(self.file_path) if self.file_path is not None else 0
 
 
 class Position(Enum):

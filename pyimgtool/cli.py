@@ -17,7 +17,7 @@ from sty import ef, fg, rs
 
 from pyimgtool.args import parse_args
 from pyimgtool.commands import mat, resize, sharpen, watermark
-from pyimgtool.data_structures import Size
+from pyimgtool.data_structures import Img, Size
 from pyimgtool.exceptions import (
     ImageTooSmallError,
     OverlaySizeError,
@@ -55,6 +55,8 @@ def main():
     LOG.debug("Program opts:\n%s", pformat(vars(opts)))
 
     # main vars
+    inputs = []
+    processed = []
     im: Image = None
     in_file_path: str = None
     in_image_size = Size(0, 0)
@@ -92,6 +94,24 @@ def main():
                 thumb = resize.resize_thumbnail_opencv(im, Size(1000, 1000))
                 print(generate_rgb_histogram(thumb))
                 show_rgb_histogram(im)
+        elif cmd == "open2":
+            # Test of opening multiple images for some operations, such as matting
+            for item in arg.input:
+                _im = Image.open(item)
+                try:
+                    ex = piexif.load(item.name)
+                    del ex["thumbnail"]
+                except KeyError:
+                    ex = None
+                dpi = _im.info["dpi"]
+                _im = np.asarray(_im)
+                _im = cv2.cvtColor(_im, cv2.COLOR_RGB2BGR)
+                inputs.append(Img(_im, file_path=item.name, dpi=dpi, exif=ex,))
+            LOG.debug("Imgs: %s", inputs)
+            im = inputs[0].data
+            in_file_path = inputs[0].file_path
+            in_file_size = inputs[0].file_size
+            in_image_size = inputs[0].size
         elif cmd == "mat":
             im = np.asarray(im) if type(im) != np.ndarray else im
             im = mat.create_mat(im, size_inches=arg.size)
@@ -119,34 +139,32 @@ def main():
                     LOG.warning(e)
                 out_image_size = Size(*im.size)
         elif cmd == "resize2":
-            im = np.asarray(im)
-            im = cv2.cvtColor(im, cv2.COLOR_RGB2BGR)
-            orig_size = Size.from_np(im)
-            out_image_size = orig_size
-            y, x = im.shape[:2]
-            try:
-                resize_method, new_size = resize.get_method(
-                    orig_size,
-                    width=arg.width,
-                    height=arg.height,
-                    scale=arg.scale,
-                    longest=arg.longest,
-                    shortest=arg.shortest,
-                    force=arg.force,
-                )
-            except ResizeNotNeededError as e:
-                LOG.warning(e)
-            except ResizeAttributeError as e:
-                print(f"{fg.li_red}error: {e}{rs.fg}", file=sys.stderr)
-                sys.exit(1)
-            else:
+            for item in inputs:
                 try:
-                    im = resize.resize_opencv(
-                        resize_method, im, new_size, resample=cv2.INTER_AREA
+                    resize_method, new_size = resize.get_method(
+                        item.size,
+                        width=arg.width,
+                        height=arg.height,
+                        scale=arg.scale,
+                        longest=arg.longest,
+                        shortest=arg.shortest,
+                        force=arg.force,
                     )
-                except ImageTooSmallError as e:
+                except ResizeNotNeededError as e:
                     LOG.warning(e)
-                out_image_size = Size.from_np(im)
+                except ResizeAttributeError as e:
+                    print(f"{fg.li_red}error: {e}{rs.fg}", file=sys.stderr)
+                    sys.exit(1)
+                else:
+                    try:
+                        _im = resize.resize_opencv(
+                            resize_method, item.data, new_size, resample=cv2.INTER_AREA
+                        )
+                        processed.append(Img(_im))
+                    except ImageTooSmallError as e:
+                        LOG.warning(e)
+            out_image_size = processed[0].size
+            im = processed[0].data
         elif cmd == "text":
             im = watermark.with_text(
                 im,
@@ -208,7 +226,7 @@ def main():
             #     im = Image.fromarray(cv2.cvtColor(im, cv2.COLOR_BGR2RGB))
             use_progressive_jpg = in_file_size > 10000
             if use_progressive_jpg:
-                LOG.debug("Large file; using pSizee jpg")
+                LOG.debug("Large file; using progressive jpg")
 
             # Exif
             if arg.keep_exif:
@@ -242,13 +260,16 @@ def main():
             out_file_size = image_buffer.nbytes + out_exif_size
             LOG.info("Buffer output size: %s", humanize_bytes(out_file_size))
 
-            if arg.output is not None:
+            if arg.output is None:
+                root, ext = os.path.splitext(in_file_path)
+                out_file_path = f"{root}{arg.suffix}.jpg"
+            else:
                 out_file_path = arg.output.name
-                LOG.info("Saving buffer to %s", arg.output.name)
 
             if arg.no_op:
                 no_op = True
                 continue
+            LOG.info("Saving buffer to %s", out_file_path)
             if (out_path := Path(out_file_path)).exists():
                 if not arg.force:
                     LOG.critical(
@@ -263,11 +284,11 @@ def main():
                 # Create output dir if it doesn't exist
                 out_path.parent.mkdir(parents=True, exist_ok=True)
 
-                with out_path.open("wb") as f:
-                    f.write(image_buffer)
-                    if arg.keep_exif:
-                        piexif.insert(out_exif, out_file_path)
-                    out_file_size = os.path.getsize(out_file_path)
+            with out_path.open("wb") as f:
+                f.write(image_buffer)
+                if arg.keep_exif:
+                    piexif.insert(out_exif, out_file_path)
+                out_file_size = os.path.getsize(out_file_path)
 
     elapsed = perf_counter() - time_start
     report = generate_report(
@@ -293,8 +314,9 @@ def generate_report(
     elapsed_time: float,
     no_op: bool = False,
 ) -> str:
-    """
-    Generate report to display on terminal after processing.
+    """Generate report to display on terminal after processing.
+
+    TODO: handle multiple input images for certain commands
 
     Parameters
     ----------

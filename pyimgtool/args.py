@@ -205,6 +205,16 @@ def parse_args(args: List[str]) -> OrderedNamespace:
         action="store_true",
     )
 
+    # Open2
+    open2_cmd = commands.add_parser("open2", help="open image for editing with opencv")
+    open2_cmd.add_argument(
+        "input",
+        help="image file to process",
+        type=argparse.FileType(mode="rb"),
+        metavar="INPUT_FILE",
+        nargs="+",
+    )
+
     # Mat
     mat_cmd = commands.add_parser(
         "mat", help="add a mat of a specific size for printing"
@@ -459,6 +469,7 @@ def parse_args(args: List[str]) -> OrderedNamespace:
         help="file to save processed image",
         type=argparse.FileType(mode="w"),
         metavar="OUTPUT_FILE",
+        nargs="?",
     )
     save_cmd.add_argument(
         "-f", "--force", help="force overwrite of existing file", action="store_true",
@@ -485,7 +496,6 @@ def parse_args(args: List[str]) -> OrderedNamespace:
     save_cmd.add_argument(
         "-s",
         "--suffix",
-        nargs=1,
         help="text suffix appended to INPUT path if no OUTPUT file given",
         metavar="TEXT",
         default="_edited",
