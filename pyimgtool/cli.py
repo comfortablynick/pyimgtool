@@ -100,10 +100,11 @@ def main():
                 _im = Image.open(item)
                 try:
                     ex = piexif.load(item.name)
+                    dpi = _im.info["dpi"]
                     del ex["thumbnail"]
                 except KeyError:
                     ex = None
-                dpi = _im.info["dpi"]
+                    dpi = None
                 _im = np.asarray(_im)
                 _im = cv2.cvtColor(_im, cv2.COLOR_RGB2BGR)
                 inputs.append(Img(_im, file_path=item.name, dpi=dpi, exif=ex,))
