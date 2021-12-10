@@ -136,6 +136,7 @@ def resize_crop_opencv(
         method = "width" if size.w < size.h else "height"
         im = resize_opencv(method, im, size, resample=resample)
         orig = Size.from_np(im)
+        LOG.debug("New size: %s", orig)
     left = (orig.w - size.w) / 2
     top = (orig.h - size.h) / 2
     right = orig.w - left

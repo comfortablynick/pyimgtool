@@ -214,6 +214,13 @@ def parse_args(args: List[str]) -> OrderedNamespace:
         metavar="INPUT_FILE",
         nargs="+",
     )
+    open2_cmd.add_argument(
+        "-H",
+        "--histogram",
+        help="print image histogram to console",
+        dest="show_histogram",
+        action="store_true",
+    )
 
     # Mat
     mat_cmd = commands.add_parser(

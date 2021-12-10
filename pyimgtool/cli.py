@@ -113,8 +113,12 @@ def main():
             in_file_path = inputs[0].file_path
             in_file_size = inputs[0].file_size
             in_image_size = inputs[0].size
+            if arg.show_histogram:
+                LOG.debug("Generating numpy thumbnail for histogram")
+                thumb = resize.resize_thumbnail_opencv(im, Size(1000, 1000))
+                print(generate_rgb_histogram(thumb))
+                show_rgb_histogram(im)
         elif cmd == "mat":
-            im = np.asarray(im) if type(im) != np.ndarray else im
             im = mat.create_mat(im, size_inches=arg.size)
             out_image_size = Size.from_np(im)
         elif cmd == "resize":
@@ -362,6 +366,7 @@ def generate_report(
     report.append(
         ["Image Size:", str(in_image_size), report_arrow, str(out_image_size)]
     )
+    # TODO: black up arrow \u25b2 throws UnicodeEncodeError on Windows when used with `fd -x`
     report.append(
         [
             "File Size:",
