@@ -7,7 +7,7 @@ from io import BytesIO
 from pathlib import Path
 from pprint import pformat
 from time import perf_counter
-from typing import Dict, Optional
+from typing import Optional
 
 import cv2
 import numpy as np
@@ -57,12 +57,12 @@ def main():
     # main vars
     inputs = []
     processed = []
-    im: Image = None
-    in_file_path: str = None
+    im: Optional[Image.Image] = None
+    in_file_path: Optional[str]
     in_image_size = Size(0, 0)
     in_file_size = 0
     in_dpi = 0
-    in_exif: Optional[Dict] = None
+    in_exif: Optional[dict] = None
     out_exif: bytes = b""
     out_exif_size = 0
     out_file_path = None
