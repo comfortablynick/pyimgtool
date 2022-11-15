@@ -1,8 +1,8 @@
 """Mat image for printing."""
 
 import logging
+
 import numpy as np
-from typing import Tuple
 
 from pyimgtool.data_structures import Size
 
@@ -11,8 +11,8 @@ LOG = logging.getLogger(__name__)
 
 def create_mat(
     im: np.ndarray,
-    size_inches: Tuple[float, float] = (8.5, 11.0),
-    size_pixels: Size = None,
+    size_inches: tuple[float, float] = (8.5, 11.0),
+    size_pixels: Size | None = None,
     dpi=300,
 ) -> np.ndarray:
     """Paste image onto mat of specified size.

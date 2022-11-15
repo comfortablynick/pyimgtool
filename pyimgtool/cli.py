@@ -7,7 +7,7 @@ from io import BytesIO
 from pathlib import Path
 from pprint import pformat
 from time import perf_counter
-from typing import Optional
+from typing import Optional, TypeGuard
 
 import cv2
 import numpy as np
@@ -28,6 +28,10 @@ from pyimgtool.utils import generate_rgb_histogram, humanize_bytes, show_rgb_his
 
 logging.basicConfig(level=logging.WARNING)
 LOG = logging.getLogger(__name__)
+
+
+def is_ndarray(val) -> TypeGuard[np.ndarray]:
+    return isinstance(val, np.ndarray)
 
 
 def main():
@@ -57,7 +61,8 @@ def main():
     # main vars
     inputs = []
     processed = []
-    im: Optional[Image.Image] = None
+    # im: Optional[Image.Image] = None
+    im: Image.Image | np.ndarray | None = None
     in_file_path: Optional[str]
     in_image_size = Size(0, 0)
     in_file_size = 0
@@ -75,7 +80,7 @@ def main():
 
         if cmd == "open":
             in_file_path = arg.input.name
-            in_file_size = os.path.getsize(in_file_path)
+            in_file_size = os.path.getsize(in_file_path)  # type: ignore
             im = Image.open(arg.input)
             in_image_size = Size(*im.size)
             LOG.info("Input dims: %s", in_image_size)
@@ -104,26 +109,39 @@ def main():
                     del ex["thumbnail"]
                 except KeyError:
                     ex = None
-                    dpi = None
+                    dpi = (0, 0)
                 _im = np.asarray(_im)
                 _im = cv2.cvtColor(_im, cv2.COLOR_RGB2BGR)
-                inputs.append(Img(_im, file_path=item.name, dpi=dpi, exif=ex,))
+                inputs.append(
+                    Img(
+                        _im,
+                        file_path=item.name,
+                        dpi=dpi,
+                        exif=ex,
+                    )
+                )
             LOG.debug("Imgs: %s", inputs)
             im = inputs[0].data
             in_file_path = inputs[0].file_path
             in_file_size = inputs[0].file_size
             in_image_size = inputs[0].size
             if arg.show_histogram:
+                if not is_ndarray(im):
+                    raise TypeError('Expected numpy.ndarray')
                 LOG.debug("Generating numpy thumbnail for histogram")
                 thumb = resize.resize_thumbnail_opencv(im, Size(1000, 1000))
                 print(generate_rgb_histogram(thumb))
                 show_rgb_histogram(im)
         elif cmd == "mat":
+            if not is_ndarray(im):
+                raise TypeError('Expected numpy.ndarray')
             im = mat.create_mat(im, size_inches=arg.size)
             out_image_size = Size.from_np(im)
         elif cmd == "resize":
             im = Image.fromarray(im) if type(im) == np.ndarray else im
-            orig_size = Size(*im.size)
+            if is_ndarray(im) or im is None:
+                raise TypeError('Expected Image, not ndarray')
+            orig_size = Size(*im.size)  # type: ignore
             out_image_size = orig_size
             try:
                 resize_method, new_size = resize.get_method(
@@ -139,10 +157,14 @@ def main():
             else:
                 # Resize/resample
                 try:
-                    im = resize.resize(resize_method, im, new_size,)
+                    im = resize.resize(
+                        resize_method,
+                        im,
+                        new_size,
+                    )
                 except ImageTooSmallError as e:
                     LOG.warning(e)
-                out_image_size = Size(*im.size)
+                out_image_size = Size(*im.size)  # type: ignore
         elif cmd == "resize2":
             for item in inputs:
                 try:
@@ -165,12 +187,19 @@ def main():
                         _im = resize.resize_opencv(
                             resize_method, item.data, new_size, resample=cv2.INTER_AREA
                         )
-                        processed.append(Img(_im))
+                        if _im is not None:
+                            processed.append(Img(_im))
+                        else:
+                            LOG.error('Expected image from resize_opencv(), got None')
                     except ImageTooSmallError as e:
                         LOG.warning(e)
+            LOG.info(processed)
             out_image_size = processed[0].size
             im = processed[0].data
         elif cmd == "text":
+            if im is None:
+                LOG.error('Image is None')
+                return
             im = watermark.with_text(
                 im,
                 text=arg.text,
@@ -179,7 +208,7 @@ def main():
                 position=arg.position,
                 opacity=arg.opacity,
                 exif=in_exif,
-            )
+            )  # type: ignore
         elif cmd == "text2":
             im = watermark.with_text(
                 Image.fromarray(im),
@@ -266,7 +295,7 @@ def main():
             LOG.info("Buffer output size: %s", humanize_bytes(out_file_size))
 
             if arg.output is None:
-                root, ext = os.path.splitext(in_file_path)
+                root, _ = os.path.splitext(in_file_path)
                 out_file_path = f"{root}{arg.suffix}.jpg"
             else:
                 out_file_path = arg.output.name

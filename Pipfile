@@ -15,15 +15,14 @@ isort = "*"
 [packages]
 pillow = "*"
 piexif = "*"
-pyimgtool = {editable = true, path = "."}
 sty = "*"
 plotille = "*"
 opencv-python = "*"
 better-exceptions = "*"
 matplotlib = "*"
-
 # [requires]
 # python_version = "3.10"
+pyimgtool = {editable = true, path = "."}
 
 [pipenv]
 allow_prereleases = true

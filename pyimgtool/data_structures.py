@@ -196,7 +196,10 @@ class Size:
 
     @classmethod
     def calculate_new(
-        cls, orig_size: Size, scale: float = None, new_size: Size = None,
+        cls,
+        orig_size: Size,
+        scale: float | None = None,
+        new_size: Size | None = None,
     ) -> Size:
         """Calculate new dimensions and maintain image aspect ratio.
 
@@ -264,9 +267,9 @@ class Box:
 class Stat:
     """Image statistics."""
 
-    stddev: float = 0.0
-    mean: float = 0.0
-    data: np.ndarray = field(default=None, repr=False)
+    stddev: np.float64 = np.float64(0.0)
+    mean: np.float64 = np.float64(0.0)
+    data: np.ndarray | None = field(default=None, repr=False)
 
     def __str__(self):
         return f"Stat(stddev={self.stddev}, mean={self.mean}, weighted_dev={self.weighted_dev})"
@@ -277,4 +280,4 @@ class Stat:
     def weighted_dev(self) -> float:
         """Luminance deviation multiplied by how close the average is to 0 or 255."""
         distance = abs(self.mean - 128) / 128.0
-        return self.stddev - (self.stddev * distance) * 0.5
+        return float(self.stddev - (self.stddev * distance) * 0.5)

@@ -18,7 +18,7 @@ from pyimgtool.exceptions import OverlaySizeError
 LOG = logging.getLogger(__name__)
 
 
-def get_region_stats(im: PILImage, region: Box) -> ImageStat:
+def get_region_stats(im: PILImage, region: Box) -> Stat:
     """Get ImageStat object for region of PIL image.
 
     Parameters
@@ -63,7 +63,7 @@ def get_region_stats_np(im: np.ndarray, region: Box) -> Stat:
 
 
 def find_best_location(
-    im: Image, size: Size, padding: float
+    im: PILImage, size: Size, padding: float
 ) -> Tuple[Position, Box, Stat]:
     """Find the best location for the watermark.
 
@@ -147,8 +147,8 @@ def get_copyright_string(exif: Dict[Any, Any]) -> str:
 def with_image(
     im: PILImage,
     watermark_image: PILImage,
-    scale: float = None,
-    position: Position = None,
+    scale: float | None = None,
+    position: Position | None = None,
     opacity: float = 0.3,
     padding: float = 0.05,
     invert: bool = False,
@@ -191,9 +191,10 @@ def with_image(
     im_gray = im.convert("L")
     if position is None:
         position, bx, stat = find_best_location(im_gray, watermark_size, padding)
-        LOG.debug("Best detected watermark loc: %s", position)
+        LOG.info("Best detected watermark loc: %s", position)
+        LOG.debug("find_best_location() stats: %s", stat)
     else:
-        LOG.debug("Position from args: %s", position)
+        LOG.info("Position from args: %s", position)
         bx = position.calculate_for_overlay(Size(*im.size), watermark_size, padding)
     im.paste(watermark_image, bx[:2], mask)
     return im
@@ -207,7 +208,7 @@ def with_image_opencv(
     position: Position = Position.BOTTOM_RIGHT,
     opacity: float = 0.3,
     padding: int = 10,
-) -> Image:
+) -> np.ndarray:
     """Watermark with image according to Config.
 
     Args:
@@ -250,8 +251,8 @@ def with_image_opencv(
 def overlay_transparent(
     background: np.ndarray,
     overlay: np.ndarray,
-    scale: float = None,
-    position: Position = None,
+    scale: int | None = None,
+    position: Position | None = None,
     padding: float = 0.05,
     alpha: float = 0.3,
     invert: bool = False,
@@ -281,12 +282,12 @@ def overlay_transparent(
         If overlay image is larger than background image
     """
     bg_h, bg_w = background.shape[:2]
-    if scale is not None and scale != 1.0:
-        if scale < 1.0:
+    if scale is not None and scale != 1:
+        if scale < 1:
             resample = cv2.INTER_AREA
         else:
             resample = cv2.INTER_CUBIC
-        overlay = cv2.resize(overlay, None, fx=scale, fy=scale, interpolation=resample)
+        overlay = cv2.resize(overlay, None, fx=scale, fy=scale, interpolation=resample)  # type: ignore
     LOG.debug("Overlay shape: %s", overlay.shape)
     h, w, c = overlay.shape
     LOG.debug(
@@ -311,7 +312,7 @@ def overlay_transparent(
         shape = h, w, 1
         LOG.debug("Adding alpha channel for overlay of shape: %s", shape)
         overlay = np.concatenate(
-            [overlay, np.ones(shape, dtype=overlay.dtype) * 255], axis=2,
+            [overlay, np.ones(shape, dtype=overlay.dtype) * 255.0], axis=2,
         )
     overlay_image = overlay[..., :3]
     mask = overlay_image / 256.0 * alpha
@@ -331,15 +332,15 @@ def overlay_transparent(
 
 
 def with_text(
-    im: Image,
-    text: str = None,
+    im: PILImage,
+    text: str,
     copyright: bool = False,
     scale: float = 0.2,
-    position: Position = None,
+    position: Position | None = None,
     opacity: float = 0.3,
     padding: int = 10,
-    exif: dict = None,
-) -> Image:
+    exif: dict | None = None,
+) -> PILImage:
     """Watermark with text if program option is supplied.
 
     If text is equal to 'copyright', the exif data will be read
@@ -364,6 +365,7 @@ def with_text(
     layer = Image.new("RGBA", (im.width, im.height), (255, 255, 255, 0))
 
     font_size = 1  # starting size
+    font_path = ""
     offset_x = padding
     offset_y = padding
 
@@ -396,13 +398,13 @@ def with_text(
     stats = get_region_stats(
         im, Box(offset_x, offset_y, text_width, im.height - text_height)
     )
-    LOG.debug("Region luminance: %f", stats.mean[0])
-    LOG.debug("Region luminance stddev: %f", stats.stddev[0])
+    LOG.debug("Region luminance: %f", stats.mean)
+    LOG.debug("Region luminance stddev: %f", stats.stddev)
     d = ImageDraw.Draw(layer)
     opacity = int(round((opacity * 255)))
     LOG.info("Text opacity: %d/255", opacity)
     text_fill = 255, 255, 255, opacity
-    if stats.mean[0] / 256 >= 0.5:
+    if stats.mean / 256 >= 0.5:
         text_fill = 0, 0, 0, opacity
 
     d.text((offset_x, offset_y), text, font=font, fill=text_fill)

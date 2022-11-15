@@ -20,11 +20,11 @@ runpil:
     {{bin_name}} -vv open {{test_file_in}} resize -s 0.4 save {{test_file_out}} -fk
 
 runcv:
-    {{bin_name}} -vv open {{test_file_in}} resize2 -s 0.4 save {{test_file_out2}} -fk
+    {{bin_name}} -vv open2 {{test_file_in}} resize2 -s 0.4 save {{test_file_out2}} -fk
 
 # test text watermark
 runw:
-    {{bin_name}} -vv open {{test_file_in}} resize2 -W 2000 -H 2000 text2 "Nick Murphy | murphpix.com" -c save {{test_file_out2}} -fk
+    {{bin_name}} -vv open2 {{test_file_in}} resize2 -W 2000 -H 2000 text2 "Nick Murphy | murphpix.com" -c save {{test_file_out2}} -fk
 
 # test logo watermark image
 runwi:
@@ -32,11 +32,11 @@ runwi:
 
 # test logo watermark image2
 runwi2:
-    {{bin_name}} -vv open {{test_file_in}} resize2 -W 2000 -H 2000 watermark2 {{test_watermark_file}} -s 1 -o 0.3 save {{test_file_out2}} -fk
+    {{bin_name}} -vv open2 {{test_file_in}} resize2 -W 2000 -H 2000 watermark2 {{test_watermark_file}} -s 1 -o 0.3 save {{test_file_out2}} -fk
 
 # test full logo watermark
 runwif:
-    {{bin_name}} -vv open {{test_file_in}} resize2 -W 2000 -H 2000 watermark2 {{test_full_watermark_file}} -s 0.2 -o 0.2 save {{test_file_out2}} -fk
+    {{bin_name}} -vv open2 {{test_file_in}} resize2 -W 2000 -H 2000 watermark2 {{test_full_watermark_file}} -s 0.2 -o 0.2 save {{test_file_out2}} -fk
 
 # show prog help
 help:

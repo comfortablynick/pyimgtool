@@ -19,6 +19,12 @@ cwd=<root>
 output=terminal
 save=1
 
+[run]
+command=just runw
+cwd=<root>
+output=terminal
+save=1
+
 [runargs]
 command=just runargs
 cwd=<root>
